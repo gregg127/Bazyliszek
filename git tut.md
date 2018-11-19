@@ -27,6 +27,9 @@
 ### Pobranie zmian z serwera
 - git pull
 
+### Porzucenie swoich zmian
+- git checkout *
+- przydatne, gdy chcesz zrobic **git pull** bez dodawania swoich zmian (**merge**)
 ---
 
 # Co wpisaæ?
