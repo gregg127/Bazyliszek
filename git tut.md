@@ -22,13 +22,10 @@
 - **git config user.email s15045@pjwstk.edu.pl**
 		
 ### Wyslanie zmian na serwer
-<<<<<<< HEAD
-	git push
+- git push
 	
 ### Pobranie zmian z serwera
-	git pull
-=======
-- git push
+- git pull
 
 ---
 
@@ -47,4 +44,3 @@
 	- **git push**
 6. pobranie zmian z serwera
 	- **git pull**
->>>>>>> 69e64cfb8cce579318c1bcf041e57469367f735f
