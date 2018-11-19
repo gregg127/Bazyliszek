@@ -243,12 +243,11 @@ void move_robot(int cm) { //Move robot for the delared distance, measured in enc
   float b_sum = 0; // for integral part
   float b_previous_error = cm; // for derivative part
 
-  for (int i = 40; i < 240; i += 1) { // opoznienie aż o 20ms * 200 obrotów pętli = 4000ms = 4 sekundy
-    // zamiast tego proponuje dać odpowiedni kondensator :---))) ~GG
-    analogWrite(enA, i);
-    analogWrite(enB, i);
-    enA_value = enB_value = i;
-    delay(20);
+     for (int i = 0; i < 200; i += 1) {
+      analogWrite(enA, i);
+     analogWrite(enB, i);
+     enA_value = enB_value = i;
+     delay(1);
   }
 
   while (true) {
