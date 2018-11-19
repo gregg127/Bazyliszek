@@ -21,3 +21,6 @@
 		
 ### Wyslanie zmian na serwer
 	git push
+	
+### Pobranie zmian z serwera
+	git pull
