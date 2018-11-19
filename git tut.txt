@@ -1,0 +1,10 @@
+Inicjalizowanie repozytorium:
+	git init
+Klonowanie repozytorium:
+	git clone https://USERNAME@bitbucket.org/TEAMNAME/REPO-NAME.git
+	git clone https://gregg127@bitbucket.org/roboticsfanatics/bazyliszek_arduino.git
+Dodanie wszystkich plików z repo do commita: 
+	git add *
+Commit:
+	git commit -m "Wiadomosc do commita"
+	
