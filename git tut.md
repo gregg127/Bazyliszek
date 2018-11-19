@@ -3,9 +3,9 @@
 	
 ### Klonowanie repozytorium:
 	git clone https://USERNAME@bitbucket.org/TEAMNAME/REPO-NAME.git
-	** git clone https://gregg127@bitbucket.org/roboticsfanatics/bazyliszek_arduino.git **
+	**git clone https://gregg127@bitbucket.org/roboticsfanatics/bazyliszek_arduino.git**
 		
-### Dodanie wszystkich plikÃ³w z repo do commita: 
+### Dodanie wszystkich plików z repo do commita: 
 	git add *
 	
 ### Commit:
@@ -17,7 +17,7 @@
 		
 ### Ustawienie emaila do wysylania repo na serwer
 	git config user.email <email>
-	** git config user.email s15045@pjwstk.edu.pl **
+	**git config user.email s15045@pjwstk.edu.pl**
 		
 ### Wyslanie zmian na serwer
 	git push
