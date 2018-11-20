@@ -169,7 +169,10 @@ void loop() {
 
     switch (control) {
       case 'm': // move
-        move_robot(read_value); // GG
+        move_robot(read_value, true); // GG
+        break;
+      case 'n':
+        move_robot(read_value, false);
         break;
       case 'r': // rotate
         rotate(read_value); // GG
@@ -219,7 +222,7 @@ void check_bluetooth_state() {
   //  }
 }
 
-void move_robot(int cm) { //Move robot for the delared distance, measured in encoder readings
+void move_robot(int cm, bool forward) { //Move robot for the delared distance, measured in encoder readings
   //Przesuniecie robota o zadana odleglosc liczona w odczytach enkoderow
 
   float click_to_cm_ratio = 0.6; // dystans w cm przejechany przy jednym obrocie kolka
@@ -227,8 +230,13 @@ void move_robot(int cm) { //Move robot for the delared distance, measured in enc
   float b_cm = 0;
   a_rotation_counter = 0; // wyzerowanie licznika obrotow dla silnika A
   b_rotation_counter = 0; // wyzerowanie licznika obrotow dla silnika B
-  a_forward();
-  b_forward();
+  if(forward) {
+    a_forward();
+    b_forward(); 
+  } else {
+    a_backward();
+    b_backward();
+  }
   my_analog_write(enA, 255);
   my_analog_write(enB, 255);
   float propotion = 1.51; // propocja 255 -> 100 = 155 to jest zjazd
