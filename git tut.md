@@ -30,6 +30,13 @@
 ### Porzucenie swoich zmian
 - git checkout *
 - przydatne, gdy chcesz zrobic **git pull** bez dodawania swoich zmian (**merge**)
+
+### Zmiana brancha
+- git checkout -b <nazwa brancha>
+
+### Push na konkretny branch
+- git push -u origin <nazwa brancha>
+
 ---
 
 # Co wpisaæ?
