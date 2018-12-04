@@ -358,79 +358,72 @@ int infrared() { //Measure and calculate distance from infrared sensor
   Serial.println(cm);
   return (cm);
 }
-void velocity(int value_pwm) { //Set both motors to given PWM
-  a_forward(); // ustawienie dwoch silnikow na jazde prosto
+
+const double p = -22; // propocja 255 -> 100 = 155 to jest zjazd
+const double i = -0.0149; // calka - stala wartosc przez ktora mnozy sie sume
+const double d = -19; // pochodona - stala wartosc przez ktora mnozy sie roznice
+
+void velocity(int value_pwm) {
+  // === ustawienie dwoch silnikow na jazde prosto
+  a_forward(); 
   b_forward();
+  
+  // === soft start
   int start_value = 30;
-  for (int i = start_value; i < 200; i += 1) { // softstart
+  for (int i = start_value; i < 200; i += 1) { 
     analogWrite(enA, i);
     analogWrite(enB, i - start_value);
-    //enA_value = enB_value = i; 4 oled
     delay(10);
   }
 
-  a_rotation_counter = 0; // wartosci odczytow z enkoderow ustawiamy na zero
+  // === wyzerowanie wartosci licznikow rotacji enkoderow dzialajacych na przerwaniach
+  a_rotation_counter = 0;
   b_rotation_counter = 0;
 
-  double p = -22; // propocja 255 -> 100 = 155 to jest zjazd
-  double i = -0.0149; // calka - stala wartosc przez ktora mnozy sie sume
-  double d = -19; // pochodona - stala wartosc przez ktora mnozy sie roznice
-
-
-  double a_sum = 0; // for integral part
-  double a_previous_error; // for derivative part
+  // === ustawienie zmiennych pomocniczych do PIDa
+  double a_sum = 0; // integral part
+  double a_previous_error; // derivative part
   unsigned long a_prev_millis = millis();
   unsigned long b_prev_millis = millis();
-  double b_sum = 0; // for integral part
-  double b_previous_error; // for derivative part
+  double b_sum = 0; // integral part
+  double b_previous_error; // derivative part
   bool first_delta_error = true;
-  
 
+  // === ustawienie zmiennych sluzacych do obliczania predkosci silnikow
   double a_previous_rotation = 0;
   double b_previous_rotation = 0;
-
   double a_vel = 0;
   double b_vel = 0;
-
-  int pwn_a, pwn_b = 0;
   unsigned long offset = millis();
-  unsigned int prev_dt = 0;
-  //String answer = "";
   unsigned int dt;
+  unsigned int prev_dt = 0;
   int interval = 250;
   unsigned long current_millis;
-  analog_write_motors(enA, value_pwm); //TEMP
+
+  // === zmienna przochowujaca wartosc wyliczona w PIDzie
+  int pwn_b = 0;
+  
   while (true) {
     dt = millis() - offset;
+    // === obliczanie predkosci obydwu silnikow co okreslony interwal
     if (check_interval(dt, prev_dt, interval)) {
-      /// WARNING
-      //b_sum = 0; //!!!!
-      /// WARNING
       prev_dt = dt;
       current_millis = millis();
       a_vel = measure_velocity(&a_previous_rotation, a_rotation_counter, current_millis, &a_prev_millis);
       b_vel = measure_velocity(&b_previous_rotation, b_rotation_counter, current_millis, &b_prev_millis);
-      // answer = "A:\t"+String(a_vel)+"\tB:\t"+String(b_vel);
-      // answer.replace(".", ",");
       Serial.println(pwn_b);
     }
 
-    if(first_delta_error){
+    // === pierwsze wywolanie PIDa, ustawienie odpowiednich bledow
+    if(first_delta_error) {
       a_previous_error = a_vel - b_vel;
       b_previous_error = b_vel - a_vel;
       first_delta_error = false;
     }
-    
-    // Motor a PID
-    //pwn_a = pid_control_velocity(value_pwm, b_vel, &a_vel, p, i, d, &a_sum, &a_previous_error);
-    //analog_write_motors(enA, pwn_a);
-
-    // Motor B PID
+  
+    // === ustawienie wartosci PWM silnika B na podstawie obliczen z PIDa
     pwn_b = pid_control_velocity(a_vel, &b_vel, p, i, d, &b_sum, &b_previous_error);
     analog_write_motors(enB, pwn_b);
-    //zajmuje tyle czasu, ĹĽe wszystko zacina
-    //Serial.println(answer+"\tenA:\t"+String(pwn_a)+"\tenB:\t"+String(pwn_b));
-
   }
 }
 bool check_interval(unsigned int dt, unsigned int prev_dt, int interval) {
@@ -466,14 +459,6 @@ double pid_control_velocity(double other_velocity, double *my_vel,
     pid_output_pwm = 0;
   }
   return int(pid_output_pwm);
-
-  /*if (*my_vel <= other_velocity) {
-    return pwm_arg;
-  } else {
-    double pwm = (p * error) + (i * *sum) + (d * delta);
-    //Serial.println(String(foo) + "\t" + String(error) + "\t" + String(*sum) + "\t" + String(delta));
-    return int(pwm);
-  }*/
 }
 
 void stop_motors() {
