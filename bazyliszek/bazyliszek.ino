@@ -365,25 +365,18 @@ const double d = -19; // pochodona - stala wartosc przez ktora mnozy sie roznice
 const short dt_increase_rate = 100;
 
 void velocity(int value_pwm) {
-  delay(10000); //żebym mógł nagrać xD
   // === ustawienie dwoch silnikow na jazde prosto
   a_forward();
   b_forward();
 
-  // === soft start
-  int start_value = 30;
-  //  for (int i = start_value; i < 200; i += 1) {
-  //    analogWrite(enA, i);
-  //    analogWrite(enB, i - start_value);
-  //    delay(10);
-  //  }
-  unsigned long sofstart_offset = millis();
-  int x = 30;
-  
   // === wyzerowanie wartosci licznikow rotacji enkoderow dzialajacych na przerwaniach
   a_rotation_counter = 0;
   b_rotation_counter = 0;
 
+  // === soft start
+  int start_value = 30;
+  unsigned long sofstart_offset = millis();
+  int x = 30;
   Serial.println("[Softstart] start");
   while (x <= value_pwm) {
     if ((millis() - sofstart_offset) % 100 == 0) {
@@ -405,18 +398,18 @@ void velocity(int value_pwm) {
 
   // === ustawienie zmiennych sluzacych do obliczania predkosci silnikow
   short interval = 250;
-  
+
   double a_previous_rotation = 0;
   double b_previous_rotation = 0;
   Serial.print("[ROTATION]: ");
   Serial.print(a_rotation_counter);
   Serial.print("\t");
-  Serial.print(millis()-sofstart_offset);
+  Serial.print(millis() - sofstart_offset);
   Serial.print("\t");
-  int first_dt = (millis()-sofstart_offset)/100;
+  int first_dt = (millis() - sofstart_offset) / 100;
   Serial.print(first_dt);
   double a_vel_calibration = 0.9; //aby uniknąć skrętu w lewo na początku
-  double a_vel = (a_rotation_counter*(interval/dt_increase_rate))*a_vel_calibration/(double)first_dt;
+  double a_vel = (a_rotation_counter * (interval / dt_increase_rate)) * a_vel_calibration / (double)first_dt;
   Serial.print("\t");
   Serial.println(a_vel);
   double b_vel = 0;
@@ -425,12 +418,14 @@ void velocity(int value_pwm) {
   unsigned int prev_dt = 0;
   unsigned long current_millis;
 
-  // === zmienna przochowujaca wartosc wyliczona w PIDzie
+  // === zmienna przochowujaca wartosc wyliczona w PIDzie dla silnika B
   int pwn_b = 0;
 
   // === wyzerowanie wartosci licznikow rotacji enkoderow dzialajacych na przerwaniach
   a_rotation_counter = 0;
   b_rotation_counter = 0;
+
+  // === zmienna mająca na celu ominięcie pierwszego kroku obliczania predkosci
   boolean first_vel = true;
 
   while (true) {
@@ -449,7 +444,6 @@ void velocity(int value_pwm) {
       }
     }
 
-
     // === pierwsze wywolanie PIDa, ustawienie odpowiednich bledow
     if (first_delta_error) {
       a_previous_error = a_vel - b_vel;
@@ -462,6 +456,7 @@ void velocity(int value_pwm) {
     analog_write_motors(enB, pwn_b);
   }
 }
+
 bool check_interval(unsigned int dt, unsigned int prev_dt, int interval) {
   return (dt % interval == 0) && (dt != prev_dt) && (dt > 0);
 }
