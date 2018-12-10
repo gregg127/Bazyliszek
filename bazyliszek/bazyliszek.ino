@@ -230,32 +230,18 @@ void move_robot(int cm, bool forward) { //Move robot for the delared distance, m
   double b_cm = 0;
   a_rotation_counter = 0; // wyzerowanie licznika obrotow dla silnika A
   b_rotation_counter = 0; // wyzerowanie licznika obrotow dla silnika B
-<<<<<<< HEAD
-  if(forward) {
-    a_forward();
-    b_forward(); 
-=======
   if (forward) {
     a_forward();
     b_forward();
->>>>>>> 1a340e2d11bce42053c6cced90be61cf6a953336
   } else {
     a_backward();
     b_backward();
   }
-<<<<<<< HEAD
-  my_analog_write(enA, 255);
-  my_analog_write(enB, 255);
-  float propotion = 1.51; // propocja 255 -> 100 = 155 to jest zjazd
-  float integral = 0.01; // calka - stala wartosc przez ktora mnozy sie sume
-  float derivative = 1.51; // pochodona - stala wartosc przez ktora mnozy sie roznice
-=======
   analog_write_motors(enA, 255);
   analog_write_motors(enB, 255);
   double propotion = 1.51; // propocja 255 -> 100 = 155 to jest zjazd
   double integral = 0.01; // calka - stala wartosc przez ktora mnozy sie sume
   double derivative = 1.51; // pochodona - stala wartosc przez ktora mnozy sie roznice
->>>>>>> 1a340e2d11bce42053c6cced90be61cf6a953336
 
 
   double a_sum = 0; // for integral part
@@ -265,19 +251,11 @@ void move_robot(int cm, bool forward) { //Move robot for the delared distance, m
   double b_sum = 0; // for integral part
   double b_previous_error = cm; // for derivative part
 
-<<<<<<< HEAD
-     for (int i = 0; i < 200; i += 1) {
-      analogWrite(enA, i);
-     analogWrite(enB, i);
-     enA_value = enB_value = i;
-     delay(1);
-=======
   for (int i = 0; i < 200; i += 1) {
     analogWrite(enA, i);
     analogWrite(enB, i);
     enA_value = enB_value = i;
     delay(1);
->>>>>>> 1a340e2d11bce42053c6cced90be61cf6a953336
   }
 
   while (true) {
@@ -383,24 +361,38 @@ int infrared() { //Measure and calculate distance from infrared sensor
 
 const double p = -22; // propocja 255 -> 100 = 155 to jest zjazd
 const double i = -0.0149; // calka - stala wartosc przez ktora mnozy sie sume
-const double d = -19; // pochodna - stala wartosc przez ktora mnozy sie roznice
+const double d = -19; // pochodona - stala wartosc przez ktora mnozy sie roznice
+const short dt_increase_rate = 100;
 
 void velocity(int value_pwm) {
+  delay(10000); //żebym mógł nagrać xD
   // === ustawienie dwoch silnikow na jazde prosto
   a_forward();
   b_forward();
 
   // === soft start
   int start_value = 30;
-  for (int i = start_value; i < 200; i += 1) {
-    analogWrite(enA, i);
-    analogWrite(enB, i - start_value);
-    delay(10);
-  }
-
+  //  for (int i = start_value; i < 200; i += 1) {
+  //    analogWrite(enA, i);
+  //    analogWrite(enB, i - start_value);
+  //    delay(10);
+  //  }
+  unsigned long sofstart_offset = millis();
+  int x = 30;
+  
   // === wyzerowanie wartosci licznikow rotacji enkoderow dzialajacych na przerwaniach
   a_rotation_counter = 0;
   b_rotation_counter = 0;
+
+  Serial.println("[Softstart] start");
+  while (x <= value_pwm) {
+    if ((millis() - sofstart_offset) % 100 == 0) {
+      analogWrite(enA, x);
+      analogWrite(enB, x - start_value);
+      x++;
+    }
+  }
+  Serial.println("[Softstart] end");
 
   // === ustawienie zmiennych pomocniczych do PIDa
   double a_sum = 0; // integral part
@@ -412,29 +404,51 @@ void velocity(int value_pwm) {
   bool first_delta_error = true;
 
   // === ustawienie zmiennych sluzacych do obliczania predkosci silnikow
+  short interval = 250;
+  
   double a_previous_rotation = 0;
   double b_previous_rotation = 0;
-  double a_vel = 0;
+  Serial.print("[ROTATION]: ");
+  Serial.print(a_rotation_counter);
+  Serial.print("\t");
+  Serial.print(millis()-sofstart_offset);
+  Serial.print("\t");
+  int first_dt = (millis()-sofstart_offset)/100;
+  Serial.print(first_dt);
+  double a_vel_calibration = 0.9; //aby uniknąć skrętu w lewo na początku
+  double a_vel = (a_rotation_counter*(interval/dt_increase_rate))*a_vel_calibration/(double)first_dt;
+  Serial.print("\t");
+  Serial.println(a_vel);
   double b_vel = 0;
   unsigned long offset = millis();
   unsigned int dt;
   unsigned int prev_dt = 0;
-  int interval = 250;
   unsigned long current_millis;
 
-  // === zmienna przechowujaca wartosc wyliczona w PIDzie
+  // === zmienna przochowujaca wartosc wyliczona w PIDzie
   int pwn_b = 0;
+
+  // === wyzerowanie wartosci licznikow rotacji enkoderow dzialajacych na przerwaniach
+  a_rotation_counter = 0;
+  b_rotation_counter = 0;
+  boolean first_vel = true;
 
   while (true) {
     dt = millis() - offset;
     // === obliczanie predkosci obydwu silnikow co okreslony interwal
     if (check_interval(dt, prev_dt, interval)) {
-      prev_dt = dt;
-      current_millis = millis();
-      a_vel = measure_velocity(&a_previous_rotation, a_rotation_counter, current_millis, &a_prev_millis);
-      b_vel = measure_velocity(&b_previous_rotation, b_rotation_counter, current_millis, &b_prev_millis);
-      Serial.println(pwn_b);
+      if (!first_vel) {
+        prev_dt = dt;
+        current_millis = millis();
+        a_vel = measure_velocity(&a_previous_rotation, a_rotation_counter, current_millis, &a_prev_millis);
+        b_vel = measure_velocity(&b_previous_rotation, b_rotation_counter, current_millis, &b_prev_millis);
+        Serial.println(pwn_b);
+      } else {
+        Serial.println("[FIRST VEL CHECK OMMITTED]");
+        first_vel = false;
+      }
     }
+
 
     // === pierwsze wywolanie PIDa, ustawienie odpowiednich bledow
     if (first_delta_error) {
@@ -448,44 +462,38 @@ void velocity(int value_pwm) {
     analog_write_motors(enB, pwn_b);
   }
 }
-
 bool check_interval(unsigned int dt, unsigned int prev_dt, int interval) {
   return (dt % interval == 0) && (dt != prev_dt) && (dt > 0);
 }
 
-// CHECKED - do obliczania błędu
+//  CHECKED - do obliczania błędu
 double measure_velocity(double* previous_rotation, double current_rotation, unsigned long current_millis, unsigned long* previous_millis) {
-  double dt = (current_millis - *previous_millis) / 100;
+  double dt = (current_millis - *previous_millis) / dt_increase_rate;
   double velocity = (current_rotation - *previous_rotation) / dt;
   *previous_rotation = current_rotation;
   *previous_millis = current_millis;
   return velocity;
 }
-
+// INPUT : dane velocity
+// ERROR
+// OUTPUT: PWM
 double pid_control_velocity(double other_velocity, double *my_vel,
                             double p, double i, double d, double *sum, double *previous_error) {
 
-  // === rożnica silnika na którym działa PID i drugiego silnika || rzedu max 1.2, ok. 0.8
-  double error = *my_vel - other_velocity;
-
-  // === roznica obecnego i poprzedniego bledu - czesc derivative PIDa
+  //  unsigned long mil = millis();
+  double error = *my_vel - other_velocity;//Rożnica silnika na którym działa PID i drugiego silnika || rzedu max 1.2, ok. 0.8
   double delta = error - *previous_error; // b male, jakies 0.1
-
-  // === sumowanie wszystkich bledow - czesc integral PIDa
   *sum += error;
 
-  // === nadpisanie poprzedniego bledu na terazniejszy
   *previous_error = error;
 
-  // === wynik PID - suma trzech składowych
   float pid_output_pwm = (p * error) + (i * *sum) + (d * delta);
 
-  // === ograniczenie zakresu co ma zwracac ten PID
-  if (pid_output_pwm > 255)
+  if (pid_output_pwm > 255) { //pwm z akceptowanym zakresie
     pid_output_pwm = 255;
-  else if (pid_output_pwm < 0)
+  } else if (pid_output_pwm < 0) {
     pid_output_pwm = 0;
-
+  }
   return int(pid_output_pwm);
 }
 
@@ -493,13 +501,14 @@ void stop_motors() {
   a_fast_stop();
   b_fast_stop();
 }
-
 void serwo(int angle) {
   infrared_servo.write(angle);
   servo_position = angle;
 }
 
 int measure_sonar_distance() {
+  //[DEPRECATED]
+  //[DEPRECATED]
   //[DEPRECATED]
   int maximumRange = 200; // Maximum range needed
   int minimumRange = 0; // Minimum range needed
@@ -520,19 +529,19 @@ int measure_sonar_distance() {
 //Obsluga przerwan
 
 void encoder_a_interrupt_handler() {
+  ////Serial.println("A inter");
   unsigned long interrupt_time = millis();
   if (interrupt_time - last_time_a > 1) {
     a_rotation_counter++;
-    int foo = a_rotation_counter / 2;
   }
   last_time_a = interrupt_time;
 }
 
 void encoder_b_interrupt_handler() {
+  //Serial.println("B inter");
   unsigned long interrupt_time = millis();
   if (interrupt_time - last_time_b > 1) { // 1ms opoznienia
     b_rotation_counter++;
-    int foo = b_rotation_counter / 2;
   }
   last_time_b = interrupt_time;
 }
@@ -586,15 +595,16 @@ void write_oled_rotation_count(double a_rotation_counter, double b_rotation_coun
   display.print("  pwmB: ");
   display.print(enB_value);
   display.display();
+
 }
 
 void analog_write_motors(int analog_pin, int analog_val) {
   analogWrite(analog_pin, analog_val);
-  // === aktualizowanie wartosci zmiennej PWM silnika
-  if (analog_pin == enA)
+  if (analog_pin == enA) {
     enA_value = analog_val;
-  else if (analog_pin == enB)
+  } else if (analog_pin == enB) {
     enB_value = analog_val;
+  }
 }
 
 void on(int pin) {
@@ -639,7 +649,7 @@ void b_fast_stop() {
   off(in4);
 }
 
-// ===== Funkcje czytania z portu szeregowego =====
+//======= funkcje czytania z portu szeregowego
 // ----- Dzialanie protokolu ------
 // postac flagi: znak + trzy cyfry, no. f259, b000
 // protokol umozliwia wysylanie dowolnej wartosci
@@ -656,6 +666,7 @@ void load_received_data() { // odczytuje 4 bajty i przypisuje je do zmiennych
   Serial.flush();
   control = bytes_read[0]; // znak kierunku
   load_speed_value(); // zaladowanie do inta wartosci przyspieszenia
+  //display_data(bytes_read[0],bytes_read[1],bytes_read[2],bytes_read[3]);
 }
 
 void load_speed_value() {
