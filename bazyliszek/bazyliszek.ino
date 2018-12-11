@@ -355,7 +355,6 @@ int infrared() { //Measure and calculate distance from infrared sensor
   if (cm > 150) {
     cm = -1;
   }
-  Serial.println(cm);
   return (cm);
 }
 
@@ -365,24 +364,18 @@ const double d = -19; // pochodona - stala wartosc przez ktora mnozy sie roznice
 const short dt_increase_rate = 100;
 
 void velocity(int value_pwm) {
-  delay(10000); //żebym mógł nagrać xD
   // === ustawienie dwoch silnikow na jazde prosto
   a_forward();
   b_forward();
 
-  // === soft start
-  int start_value = 30;
-  //  for (int i = start_value; i < 200; i += 1) {
-  //    analogWrite(enA, i);
-  //    analogWrite(enB, i - start_value);
-  //    delay(10);
-  //  }
-  unsigned long sofstart_offset = millis();
-  int x = 30;
-
   // === wyzerowanie wartosci licznikow rotacji enkoderow dzialajacych na przerwaniach
   a_rotation_counter = 0;
   b_rotation_counter = 0;
+
+  // === soft start
+  int start_value = 30;
+  unsigned long sofstart_offset = millis();
+  int x = 30;
 
   Serial.println("[Softstart] start");
   while (x <= value_pwm) {
@@ -404,16 +397,14 @@ void velocity(int value_pwm) {
   bool first_delta_error = true;
 
   // === ustawienie zmiennych sluzacych do obliczania predkosci silnikow
-  short interval = 250; //czestotliwosc pomiaru predkosci
+  short interval = 250;
 
   double a_previous_rotation = 0;
   double b_previous_rotation = 0;
-  int first_dt = (millis() - sofstart_offset) / 100; //czas przez jaki mierzymy pierwszą obliczoną prędkość
-  double a_vel_calibration = 0.9; //eksperymentalnie dobrany współczynnik pierwszej obliczonej prędkośści podczas softstartu
-  double a_vel = a_rotation_counter / (double)first_dt; // obliczenie predkosci ds/dt
-  a_vel *= a_vel_calibration; //uzycie wspolczynnika predkosci
-  a_vel *= (interval / dt_increase_rate); //proporcjonalna zmiana wartosci do dostosowania sie do dt=250 w nastepnych cyklach
-  double b_vel = 0; //predkość pidowego silnika sztucznie ustawiona na 0
+  int first_dt = (millis() - sofstart_offset) / 100;
+  double a_vel_calibration = 0.9; //aby uniknąć skrętu w lewo na początku
+  double a_vel = (a_rotation_counter * (interval / dt_increase_rate)) * a_vel_calibration / (double)first_dt;
+  double b_vel = 0;
   unsigned long offset = millis();
   unsigned int dt;
   unsigned int prev_dt = 0;
@@ -425,8 +416,11 @@ void velocity(int value_pwm) {
   // === wyzerowanie wartosci licznikow rotacji enkoderow dzialajacych na przerwaniach
   a_rotation_counter = 0;
   b_rotation_counter = 0;
-  
-  boolean first_vel = true; //aby ominac pierwsze obliczanie predkosci
+  boolean first_vel = true;
+
+  // === stworzenie zmiennej pomocniczej w celu pomiarow inlosci bledow
+  short infrared_counter = 0;
+  short infrared_distance = 80;
 
   while (true) {
     dt = millis() - offset;
@@ -439,7 +433,7 @@ void velocity(int value_pwm) {
         b_vel = measure_velocity(&b_previous_rotation, b_rotation_counter, current_millis, &b_prev_millis);
         Serial.println(pwn_b);
       } else {
-        //pominieto pierwszy pomiar predkosci
+        Serial.println("[FIRST VEL CHECK OMMITTED]");
         first_vel = false;
       }
     }
@@ -455,9 +449,26 @@ void velocity(int value_pwm) {
     // === ustawienie wartosci PWM silnika B na podstawie obliczen z PIDa
     pwn_b = pid_control_velocity(a_vel, &b_vel, p, i, d, &b_sum, &b_previous_error);
     analog_write_motors(enB, pwn_b);
-  }
-}
 
+    // === odczytanie pomiarow z czujnika podczerwieni
+    if ((millis() % 50) == 0) {
+      infrared_distance = infrared();
+      if (infrared_distance != -1) {
+        infrared_counter++;
+      } else if( infrared_counter > 0) {
+        infrared_counter--;
+      }
+
+      if(infrared_counter == 20) {
+        break;
+      }
+    }
+  }
+
+  // === zahamowanie dwoma silnikami
+  a_fast_stop();
+  b_fast_stop();
+}
 bool check_interval(unsigned int dt, unsigned int prev_dt, int interval) {
   return (dt % interval == 0) && (dt != prev_dt) && (dt > 0);
 }
@@ -555,7 +566,7 @@ void update_oled() {
   display.setCursor(0, 8);
   display.print("l:");
   display.setCursor(15, 8);
-  display.print(infrared ());
+  display.print(infrared());
   display.setCursor(0, 16);
   display.print("sr:");
   display.setCursor(20, 16);
@@ -649,7 +660,7 @@ void b_fast_stop() {
 // ----- Dzialanie protokolu ------
 // postac flagi: znak + trzy cyfry, no. f259, b000
 // protokol umozliwia wysylanie dowolnej wartosci
-// o maksymalnej liczbie cyfr rownej 3 oraz znak
+// o maksymalnej liczbie cyfr rĂ„â€šÄąâ€šwnej 3 oraz znak
 // oznaczajacy akcje wykonywana przez robota
 // Przyklad: jezeli chcesz wyslac flage ze znakiem r o wartosci 90
 // flaga wyslana przez port szeregowy powinna miec postac: r090
@@ -672,3 +683,4 @@ void load_speed_value() {
   read_value_chars[3] = '\0'; // dodanie na koncu znaku konca ciagu zeby zrzutowac ladnie na inta
   sscanf(read_value_chars, "%d", &read_value); // czyta tablice znakow intow do zmiennej int korzystajac z adresu
 }
+
