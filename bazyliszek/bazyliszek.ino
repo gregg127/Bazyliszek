@@ -235,6 +235,23 @@ int pid_control(double cm_total, double cm_driven, double propotion, double inte
 }
 // ===
 void rotate(int value) {
+  a_rotation_counter = b_rotation_counter = 0; //zerowanie liczników
+  short desired = 320;
+  if ((value > 0) && (value <= desired)) {
+    b_forward();
+    a_backward();
+    analogWrite(enB, 200);
+  } else if ((value > desired) && (value <= desired*2)) {
+    a_forward();
+    b_backward();
+    analogWrite(enA, 200);
+    value = value - desired;
+  } else {
+    //bad value
+  }
+  delay(value/2);
+  a_fast_stop();
+  b_fast_stop();
 
 }
 
@@ -644,7 +661,7 @@ void loop() {
     // control - znak sterowania
     // read_value - wartosc odczytana, moze byc 0
     boolean listed = true;
-    String extra_info = "";
+    String extra_info = " "+String(read_value);
 
     switch (control) {
       case 'm': // move
