@@ -9,7 +9,7 @@ BAUD_RATE = 9600
 DELAY = 0.5
 EROSION_ITERATIONS = 0
 DILATION_ITERATIONS = 0
-
+total_pixels = 0
 
 def init():
     if len(sys.argv) == 2 and sys.argv[1] == "help":
@@ -42,7 +42,6 @@ def init():
     else:
         print("Starting program...")
         global SERIAL_PORT
-        global total_pixels
         global COLOR
         global MODE
         MODE = sys.argv[1]
@@ -52,26 +51,28 @@ def init():
             SERIAL_PORT = serial.Serial(COM_PORT, BAUD_RATE)
             time.sleep(1)
             print("Serial port initialized at " + SERIAL_PORT.name)
-        total_pixels = 0
 
 
 def get_first_mask_colors():
+    # Two masks are only necessary for red color, other colors need only 1 mask
+    # TODO: ask someone for explanation how this works
+    # https://stackoverflow.com/questions/17878254/opencv-python-cant-detect-blue-objects
     if COLOR == "green":
         return 0
     if COLOR == "red":
-        return np.array([170, 50, 50]), np.array([180, 255, 255]) 
+        return np.array([170, 50, 50]), np.array([180, 255, 255])
     if COLOR == "blue":
-        return 0
+        return np.array([100,150,0]), np.array([140,255,255])
     return -1
 
 
 def get_second_mask_colors():
     if COLOR == "green":
-        return 0
+        return 0 # Same as first mask
     if COLOR == "red":
-        return np.array([0, 50, 50]), np.array([5, 255, 255])
+        return np.array([0, 50, 50]), np.array([5, 255, 255]) 
     if COLOR == "blue":
-        return 0
+        return np.array([100,150,0]), np.array([140,255,255]) # Same as first mask
     return -1
 
 
