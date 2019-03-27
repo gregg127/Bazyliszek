@@ -106,7 +106,7 @@ if __name__ == '__main__':
     while(True):
         # Take some amount of frames to fight with delays and save the last one
         for i in range(0, int(cap.get(cv.CAP_PROP_FPS) * DELAY)):
-        	ret, frame = cap.read()
+            ret, frame = cap.read()
         if DELAY == 0:
             ret, frame = cap.read()
         # Convert RGB to HSV
