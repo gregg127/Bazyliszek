@@ -86,6 +86,8 @@ if __name__ == '__main__':
     # Elliptic matrix as a kernel of detection
     morph_kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
     total_pixels = cap.get(3) * cap.get(4)
+    lower_color_first, upper_color_first = get_first_mask_colors()
+    lower_color_second, upper_color_second = get_second_mask_colors()
     while(True):
         # Take some amount of frames to fight with delays and save the last one
         for i in range(0, int(cap.get(cv.CAP_PROP_FPS) * DELAY)):
@@ -94,12 +96,10 @@ if __name__ == '__main__':
             ret, frame = cap.read()
         # Convert RGB to HSV
         hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
-        # First mask to define ranges of red color in HSV - more discriminating
-        lower_color, upper_color = get_first_mask_colors()
-        mask1 = cv.inRange(hsv, lower_color, upper_color)
+        # First mask to define ranges of color in HSV - more discriminating
+        mask1 = cv.inRange(hsv, lower_color_first, upper_color_first)
         # Second mask - more tolerant
-        lower_color, upper_color = get_second_mask_colors()
-        mask2 = cv.inRange(hsv, lower_color, upper_color)
+        mask2 = cv.inRange(hsv, lower_color_second, upper_color_second)
         # Two masks combined
         mask_sum = mask1 + mask2
         # Bitwise AND of masks and original image - creates intersection of two images
@@ -126,8 +126,7 @@ if __name__ == '__main__':
         else:
             print("Could not calculate Cx, Cy")
             if MODE == "serial":
-                data_to_send = "r700"
-                send_data("r700")
+                send_data("r700") # TODO: HARDCODED - change that
                 time.sleep(DELAY)
         if MODE == "debug":
             # cv.imshow('camera image',frame)
