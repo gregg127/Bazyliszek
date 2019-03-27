@@ -4,8 +4,7 @@ import serial
 import time
 import sys
 
-#COM_PORT = '/dev/ttyUSB0'
-COM_PORT = 'COM1'
+COM_PORT = '/dev/ttyUSB0' # for debug: COM1
 BAUD_RATE = 9600
 DELAY = 0.5
 EROSION_ITERATIONS = 0
@@ -13,16 +12,32 @@ DILATION_ITERATIONS = 0
 
 
 def init():
+    if len(sys.argv) == 2 and sys.argv[1] == "help":
+        print("Program is executed with 2 arguments.")
+        print("First argument is mode in which program runs:")
+        print("\tdebug - for desktop color detection debugging")
+        print("\tserial - for robot deployment - sends data to serial port and does not display captured frames")
+        print("Second argument is the color to detect:")
+        print("\tred")
+        print("\tgreen")
+        print("\tblue")
+        print("Example program executions:")
+        print("\tscript_name.py debug red")
+        print("\tscript_name.py serial green")
+        sys.exit()
     if len(sys.argv) != 3:
         print("Invalid number of arguments. Expected args: mode color, for example")
         print("red_ball.py debug green")
         print("red_ball.py serial red")
+        print("Run script with argument 'help' to get more info")
         sys.exit()
     elif sys.argv[1] not in ["serial", "debug"]:
         print("Invalid first argument, expected values: serial, debug")
+        print("Run script with argument 'help' to get more info")
         sys.exit()
     elif sys.argv[2] not in ["red", "green", "blue"] :
         print("Invalid second argument, expected values: red, green, blue")
+        print("Run script with argument 'help' to get more info")
         sys.exit()
     else:
         print("Starting program...")
@@ -73,7 +88,7 @@ def get_protocol_flag(cX):
 def send_data(text):
     print('Sending data to serial port:', text)
     SERIAL_PORT.write(text.encode('utf8'))
-    SERIAL_PORT.flush();  # CHECK THIS
+    SERIAL_PORT.flush(); # TODO: check this
 
 
 def calculate_ball_size(mask):
