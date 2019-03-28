@@ -4,12 +4,73 @@ import serial
 import time
 import sys
 
-COM_PORT = '/dev/ttyUSB0' # for debug: COM1
+COM_PORT = '/dev/ttyUSB0'  # for debug: COM1
 BAUD_RATE = 9600
 DELAY = 0.5
 EROSION_ITERATIONS = 0
 DILATION_ITERATIONS = 0
-total_pixels = 0
+
+
+def main():
+    init()
+    cap = cv.VideoCapture(0)
+    # Elliptic matrix as a kernel of detection
+    morph_kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
+    global total_pixels
+    total_pixels = cap.get(3) * cap.get(4)
+    lower_color_first, upper_color_first = get_first_mask_colors()
+    lower_color_second, upper_color_second = get_second_mask_colors()
+    while True:
+        # Take some amount of frames to fight with delays and save the last one
+        for i in range(0, int(cap.get(cv.CAP_PROP_FPS) * DELAY)):
+            ret, frame = cap.read()
+        if DELAY == 0:
+            ret, frame = cap.read()
+        # Convert RGB to HSV
+        hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
+        # First mask needed only for red color, in other cases this will be the same as second mask
+        mask1 = cv.inRange(hsv, lower_color_first, upper_color_first)
+        mask2 = cv.inRange(hsv, lower_color_second, upper_color_second)
+        # Two masks combined
+        mask_sum = mask1 + mask2
+        # Bitwise AND of masks and original image - creates intersection of two images
+        res_sum = cv.bitwise_and(frame, frame, mask=mask_sum)
+        # Morphological transformation - erosion followed by dilation
+        erosion = cv.erode(mask_sum, morph_kernel, iterations=EROSION_ITERATIONS)
+        dilation = cv.dilate(erosion, morph_kernel, iterations=DILATION_ITERATIONS)
+        # Get moment from opening
+        moment = cv.moments(dilation)
+        if moment["m00"] != 0:
+            # Calculate x and y coordinates of blob center from the moment
+            cx = int(moment["m10"] / moment["m00"])
+            cy = int(moment["m01"] / moment["m00"])
+            # Add blue circle to the center of found blob to res_sum
+            cv.circle(res_sum, (cx, cy), 5, (255, 0, 0), -1)
+            # Sending found x coordinate of centroid to serial port
+            if MODE == "serial":
+                data_to_send = get_protocol_flag(cx)
+                send_data(data_to_send)
+                time.sleep(DELAY)
+            calculate_ball_size(dilation)  # Not used yet
+        else:
+            print("Could not calculate Cx, Cy")
+            if MODE == "serial":
+                send_data("r700")  # TODO: HARDCODED - change that
+                time.sleep(DELAY)
+        if MODE == "debug":
+            cv.imshow('camera image', frame)
+            # cv.imshow('mask sum - used for calculations', mask_sum)
+            # cv.imshow('mask1 res', res1)
+            # cv.imshow('mask2 res', res2)
+            cv.imshow('mask_sum res', res_sum)
+            cv.imshow('mask_sum after morph erosion and dilation', dilation)
+            # cv.imshow('mask_sum after morph erosion', erosion)
+            # Program quits on ESC button click
+            k = cv.waitKey(5) & 0xFF
+            if k == 27:
+                break
+    cv.destroyAllWindows()
+
 
 def init():
     if len(sys.argv) == 2 and sys.argv[1] == "help":
@@ -35,7 +96,7 @@ def init():
         print("Invalid first argument, expected values: serial, debug")
         print("Run script with argument 'help' to get more info")
         sys.exit()
-    elif sys.argv[2] not in ["red", "green", "blue"] :
+    elif sys.argv[2] not in ["red", "green", "blue"]:
         print("Invalid second argument, expected values: red, green, blue")
         print("Run script with argument 'help' to get more info")
         sys.exit()
@@ -55,41 +116,39 @@ def init():
 
 def get_first_mask_colors():
     # Two masks are only necessary for red color, other colors need only 1 mask
-    # TODO: ask someone for explanation how this works
-    # https://stackoverflow.com/questions/17878254/opencv-python-cant-detect-blue-objects
     if COLOR == "green":
-        return 0
+        return np.array([40, 20, 20]), np.array([75, 255, 255])
     if COLOR == "red":
-        return np.array([170, 50, 50]), np.array([180, 255, 255])
+        return np.array([170, 50, 20]), np.array([180, 255, 255])
     if COLOR == "blue":
-        return np.array([100,150,0]), np.array([140,255,255])
+        return np.array([100, 100, 20]), np.array([140, 255, 255])
     return -1
 
 
 def get_second_mask_colors():
     if COLOR == "green":
-        return 0 # Same as first mask
+        return np.array([45, 20, 20]), np.array([70, 255, 255])  # Duplicate of first mask
     if COLOR == "red":
-        return np.array([0, 50, 50]), np.array([5, 255, 255]) 
+        return np.array([0, 50, 50]), np.array([5, 255, 255])
     if COLOR == "blue":
-        return np.array([100,150,0]), np.array([140,255,255]) # Same as first mask
+        return np.array([110, 100, 0]), np.array([130, 255, 255])  # Duplicate of first mask
     return -1
 
 
-def get_protocol_flag(cX):
+def get_protocol_flag(cx):
     # Convert cX to be readable by Arduino protocol, eg. 4 to 004, 20 to 020
-    strcX = str(cX)
-    strcXOut = ''
-    for i in range(0, 3-len(strcX)):
-        strcXOut += "0"
-    strcXOut += strcX
-    return "r" + strcXOut
+    str_cx = str(cx)
+    str_cx_out = ''
+    for i in range(0, 3 - len(str_cx)):
+        str_cx_out += "0"
+    str_cx_out += str_cx
+    return "r" + str_cx_out
 
 
 def send_data(text):
     print('Sending data to serial port:', text)
     SERIAL_PORT.write(text.encode('utf8'))
-    SERIAL_PORT.flush(); # TODO: check this
+    SERIAL_PORT.flush()  # TODO: check this
 
 
 def calculate_ball_size(mask):
@@ -97,63 +156,4 @@ def calculate_ball_size(mask):
 
 
 if __name__ == '__main__':
-    init()
-    cap = cv.VideoCapture(0)
-    # Elliptic matrix as a kernel of detection
-    morph_kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
-    total_pixels = cap.get(3) * cap.get(4)
-    lower_color_first, upper_color_first = get_first_mask_colors()
-    lower_color_second, upper_color_second = get_second_mask_colors()
-    while(True):
-        # Take some amount of frames to fight with delays and save the last one
-        for i in range(0, int(cap.get(cv.CAP_PROP_FPS) * DELAY)):
-            ret, frame = cap.read()
-        if DELAY == 0:
-            ret, frame = cap.read()
-        # Convert RGB to HSV
-        hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
-        # First mask to define ranges of color in HSV - more discriminating
-        mask1 = cv.inRange(hsv, lower_color_first, upper_color_first)
-        # Second mask - more tolerant
-        mask2 = cv.inRange(hsv, lower_color_second, upper_color_second)
-        # Two masks combined
-        mask_sum = mask1 + mask2
-        # Bitwise AND of masks and original image - creates intersection of two images
-        res1 = cv.bitwise_and(frame, frame, mask = mask1)
-        res2 = cv.bitwise_and(frame, frame, mask = mask2)
-        res_sum = cv.bitwise_and(frame, frame, mask = mask_sum)
-        # Morphological transformation - erosion followed by dilation
-        erosion = cv.erode(mask_sum, morph_kernel, iterations = EROSION_ITERATIONS)
-        dilation = cv.dilate(erosion, morph_kernel, iterations = DILATION_ITERATIONS)
-        # Get moment from opening
-        moment = cv.moments(dilation)
-        if(moment["m00"] != 0):
-            # Calculate x and y coordinates of blob center from the moment
-            cX = int(moment["m10"] / moment["m00"])
-            cY = int(moment["m01"] / moment["m00"])
-            # Add blue circle to the center of found blob to res_sum
-            cv.circle(res_sum, (cX, cY), 5, (255, 0, 0), -1)
-            # Sending found x coordinate of centroid to serial port
-            if MODE == "serial":
-                data_to_send = get_protocol_flag(cX)
-                send_data(data_to_send)
-                time.sleep(DELAY)
-            calculate_ball_size(dilation) # Not used yet
-        else:
-            print("Could not calculate Cx, Cy")
-            if MODE == "serial":
-                send_data("r700") # TODO: HARDCODED - change that
-                time.sleep(DELAY)
-        if MODE == "debug":
-            # cv.imshow('camera image',frame)
-            # cv.imshow('mask sum - used for calculations', mask_sum)
-            # cv.imshow('mask1 res', res1)
-            # cv.imshow('mask2 res', res2)
-            cv.imshow('mask_sum res', res_sum)
-            cv.imshow('mask_sum after morph erosion and dilation', dilation)
-            # cv.imshow('mask_sum after morph erosion', erosion)
-            # Program quits on ESC button click
-            k = cv.waitKey(5) & 0xFF
-            if k == 27:
-                break
-    cv.destroyAllWindows()
+    main()
