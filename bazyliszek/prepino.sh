@@ -31,8 +31,8 @@ else
         mkdir sketchbook
         mkdir tmp
         printf "\n$name Installing soft\n\n"
-        #apt-get update --fix-missing
-        #apt-get install arduino-mk arduino gcc-avr avr-libc avrdude unzip
+        apt-get update --fix-missing
+        apt-get install arduino-mk arduino gcc-avr avr-libc avrdude unzip
         printf "\n$name All required soft installed\n\n"
         cd tmp
         wget -O liblist.txt "$liblist"
@@ -44,14 +44,11 @@ else
                 unzip -o lib.zip -d /home/pi/arduino_libs
                 rm lib.zip
         done
-        cd
-        cd "$1"
-        cd sketchbook
+        cd /home/pi/"$1"/sketchbook
         wget -O sketch.ino $ino
         wget $mkfile
         make
-        cd
-        cd "$1"
-        rm -R tmp
+        cd /home/pi/"$1"
+        rm -rf tmp
 fi
 fi
