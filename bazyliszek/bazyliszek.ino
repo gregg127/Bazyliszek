@@ -77,18 +77,7 @@ int servo_position = 0;
 
 Adafruit_SSD1306 display(OLED_RESET);
 
-void setup() {
-  Serial.begin(38400);
 
-  set_pin_modes();
-
-  initialize_servo();
-
-  attach_interrupts();
-
-  setup_oled();
-
-}
 
 void set_pin_modes() { //Setting I/O pins
   //Ustawienie pinow wejscia i wyjscia
@@ -155,57 +144,6 @@ char read_value_chars[4] = ""; // tymczasowa tablica przechowujaca odczytana war
 int previous_state;
 int current_state;
 
-void loop() {
-  check_bluetooth_state();
-  //check_sonar_nonblocking();
-
-  if (Serial.available() > 0) { // GG
-    load_received_data(); // GG
-    // Do sterowania nalezy korzystac ze zmiennych:
-    // control - znak sterowania
-    // read_value - wartosc odczytana, moze byc 0
-    boolean listed = true;
-    String extra_info = "";
-
-    switch (control) {
-      case 'm': // move
-        move_robot(read_value, true); // GG
-        break;
-      case 'n':
-        move_robot(read_value, false);
-        break;
-      case 'r': // rotate
-        rotate(read_value); // GG
-        break;
-      case 'b':// back sonar
-        extra_info = "\nSonar: ";
-        extra_info += String(back_sonar());
-        extra_info += "cm";
-        break;
-      case 'c':// IR infra
-        extra_info = "\nIR: ";
-        extra_info += String(infrared());
-        extra_info += "cm";
-        break;
-      case 'v':// velocity
-        velocity(read_value);
-        break;
-      case 's':// stop motors
-        stop_motors();
-        break;
-      case 'o':// serwo mechanism
-        extra_info = "\nServo: ";
-        extra_info += String(read_value);
-        extra_info += "'";
-        serwo(read_value); // kat jako arg
-        break;
-      default:
-        listed = false;
-        break;
-    }
-    display_char(control, listed, extra_info);
-  }
-}
 
 void check_bluetooth_state() {
   //  String bt_ok = "BT: connected";
@@ -683,4 +621,69 @@ void load_speed_value() {
   read_value_chars[3] = '\0'; // dodanie na koncu znaku konca ciagu zeby zrzutowac ladnie na inta
   sscanf(read_value_chars, "%d", &read_value); // czyta tablice znakow intow do zmiennej int korzystajac z adresu
 }
+
+void setup() {
+  Serial.begin(38400);
+
+  set_pin_modes();
+
+  initialize_servo();
+
+  attach_interrupts();
+
+  setup_oled();
+
+}
+void loop() {
+  check_bluetooth_state();
+  //check_sonar_nonblocking();
+
+  if (Serial.available() > 0) { // GG
+    load_received_data(); // GG
+    // Do sterowania nalezy korzystac ze zmiennych:
+    // control - znak sterowania
+    // read_value - wartosc odczytana, moze byc 0
+    boolean listed = true;
+    String extra_info = "";
+
+    switch (control) {
+      case 'm': // move
+        move_robot(read_value, true); // GG
+        break;
+      case 'n':
+        move_robot(read_value, false);
+        break;
+      case 'r': // rotate
+        rotate(read_value); // GG
+        break;
+      case 'b':// back sonar
+        extra_info = "\nSonar: ";
+        extra_info += String(back_sonar());
+        extra_info += "cm";
+        break;
+      case 'c':// IR infra
+        extra_info = "\nIR: ";
+        extra_info += String(infrared());
+        extra_info += "cm";
+        break;
+      case 'v':// velocity
+        velocity(read_value);
+        break;
+      case 's':// stop motors
+        stop_motors();
+        break;
+      case 'o':// serwo mechanism
+        extra_info = "\nServo: ";
+        extra_info += String(read_value);
+        extra_info += "'";
+        serwo(read_value); // kat jako arg
+        break;
+      default:
+        listed = false;
+        break;
+    }
+    display_char(control, listed, extra_info);
+  }
+}
+
 
