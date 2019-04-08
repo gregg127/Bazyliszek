@@ -71,7 +71,6 @@ void set_pin_modes();
 void initialize_servo();
 void attach_interrupts();
 void loop();
-void check_bluetooth_state();
 void move_robot(int cm, bool forward);
 int pid_control(double cm_total, double cm_driven, double propotion, double integral, double derivative, double *sum, double *previous_error, unsigned long *prev_mils);
 void rotate(int value);
@@ -269,7 +268,6 @@ void move_robot(int cm, bool forward)
 
   while (true)
   {
-    write_oled_rotation_count(a_cm, b_cm, cm);
 
     a_cm = a_rotation_counter * click_to_cm_ratio;
     b_cm = b_rotation_counter * click_to_cm_ratio;
@@ -284,7 +282,6 @@ void move_robot(int cm, bool forward)
     analog_write_motors(enB, pwm_b);
   }
   stop_motors();
-  print_oled_welcome_prompt();
 }
 
 // PID
@@ -338,7 +335,6 @@ void rotate(int value)
     a_fast_stop();
     b_fast_stop();
   }
-  print_oled_rotation_input(my_value, to_write_a, to_write_b);
 }
 
 int back_sonar()
