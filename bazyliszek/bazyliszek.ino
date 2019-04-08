@@ -76,7 +76,11 @@ int servo_position = 0;
 
 Adafruit_SSD1306 display(OLED_RESET);
 
+
 // === FUNCTION HEADERS
+// == warning
+int digitalPinToInterrupt(int pin);
+// ==
 void setup();
 void set_pin_modes();
 void initialize_servo();
