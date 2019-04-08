@@ -2,8 +2,6 @@
 #include <math.h>
 #include <SPI.h>
 #include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
 
 //Motor A
 //Silnik A
@@ -31,17 +29,6 @@
 //Encoders
 #define interruptA_pin 2
 #define interruptB_pin 3
-
-//Bluetooth
-#define bluetooth_state A6
-String bluetooth_status = "";
-int prev_bluetooth_state = 3;
-
-//OLED parameters
-//Parametry OLEDa
-#define LOGO16_GLCD_HEIGHT 16
-#define LOGO16_GLCD_WIDTH 16
-#define OLED_RESET 4
 
 int rotatorA = 1; // TODO
 int rotatorB = 1; // TODO
@@ -74,8 +61,6 @@ unsigned long back_sonar_previousMillis = 0;
 //Aktualna pozyja servo
 int servo_position = 0;
 
-Adafruit_SSD1306 display(OLED_RESET);
-
 
 // === FUNCTION HEADERS
 // == warning
@@ -85,9 +70,6 @@ void setup();
 void set_pin_modes();
 void initialize_servo();
 void attach_interrupts();
-void setup_oled();
-void print_oled_welcome_prompt();
-void print_oled_rotation_input(int input, int enA_speed, int enB_speed);
 void loop();
 void check_bluetooth_state();
 void move_robot(int cm, bool forward);
@@ -105,9 +87,6 @@ void serwo(int angle);
 int measure_sonar_distance();
 void encoder_a_interrupt_handler();
 void encoder_b_interrupt_handler();
-void update_oled();
-void display_char(char c, boolean listed, String extra_info);
-void write_oled_rotation_count(double a_rotation_counter, double b_rotation_counter, double rotation_quantity);
 void analog_write_motors(int analog_pin, int analog_val);
 void on(int pin);
 void off(int pin);
@@ -132,8 +111,6 @@ void setup()
   initialize_servo();
 
   attach_interrupts();
-
-  setup_oled();
 }
 
 void set_pin_modes()
@@ -167,60 +144,6 @@ void attach_interrupts()
   //Przypisanie funkcji do przerwan
   attachInterrupt(digitalPinToInterrupt(interruptA_pin), encoder_a_interrupt_handler, CHANGE);
   attachInterrupt(digitalPinToInterrupt(interruptB_pin), encoder_b_interrupt_handler, CHANGE);
-}
-
-void setup_oled()
-{ //Set up and prompt on OLED
-  //Ustawienie i wiadomosc powitalna na OLEDzie
-  String info = "Bazyliszek 0.1\n\nWaiting for\nuser input";
-  display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // initialize with the I2C addr 0x3C (for the 128x32)
-  // init done
-
-  // Show image buffer on the display hardware.
-  // Since the buffer is intialized with an Adafruit splashscreen
-  // internally, this will display the splashscreen.
-  display.display();
-
-  // Clear the buffer.
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
-  print_oled_welcome_prompt();
-}
-void print_oled_welcome_prompt()
-{ //Printing prompt on OLED
-  //Wyswietlenie wiadomosci powitalnej na ekranie
-  String info = "Bazyliszek 0.1\n" + bluetooth_status + "\n\nWaiting for input";
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  display.print(info);
-  display.display();
-}
-void print_oled_rotation_input(int input, int enA_speed, int enB_speed)
-{
-  char left = 24;
-  char right = 25;
-  char arrow;
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  String arrows = "";
-  if (enB_speed > enA_speed)
-  {
-    arrow = 24; //left
-  }
-  else
-  {
-    arrow = 25; //right
-  }
-  int iterations = max(enA_speed, enB_speed);
-  iterations = int(((double)iterations) / 11.25);
-  for (int i = 0; i < iterations; i++)
-  {
-    arrows += arrow;
-  }
-
-  display.print("Bazyliszek szuka...\nX <0; 640>: " + String(input) + "\n" + arrows + "\nenA: " + String(enA_speed) + "     enB: " + String(enB_speed));
-  display.display();
 }
 
 // == protokol kontrolowania przez port szeregowy == GG
@@ -285,8 +208,6 @@ void loop()
       listed = false;
       break;
     }
-    if (wants_to_be_printed)
-      display_char(control, listed, extra_info);
   }
 }
 
@@ -710,57 +631,6 @@ void encoder_b_interrupt_handler()
   last_time_b = interrupt_time;
 }
 
-void update_oled()
-{
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  display.print("enA:");
-  display.setCursor(25, 0);
-  display.print(enA_value);
-  display.setCursor(60, 0);
-  display.print("enB:");
-  display.setCursor(85, 0);
-  display.print(enB_value);
-  display.setCursor(0, 8);
-  display.print("l:");
-  display.setCursor(15, 8);
-  display.print(infrared());
-  display.setCursor(0, 16);
-  display.print("sr:");
-  display.setCursor(20, 16);
-  display.print(servo_position);
-  display.display();
-}
-
-void display_char(char c, boolean listed, String extra_info)
-{
-  char ctp = c - 32;
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  display.print("Bazyliszek 0.1\nUser input:\n");
-  display.print(ctp);
-  if (!listed)
-    display.print(" - unknown command");
-  display.print(extra_info);
-  display.display();
-}
-
-void write_oled_rotation_count(double a_rotation_counter, double b_rotation_counter, double rotation_quantity)
-{
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  display.print("to drive: ");
-  display.print(rotation_quantity);
-  display.print("\ndrivenA: ");
-  display.print(a_rotation_counter);
-  display.print("\ndrivenB: ");
-  display.print(b_rotation_counter);
-  display.print("\npwmA: ");
-  display.print(enA_value);
-  display.print("  pwmB: ");
-  display.print(enB_value);
-  display.display();
-}
 
 void analog_write_motors(int analog_pin, int analog_val)
 {
