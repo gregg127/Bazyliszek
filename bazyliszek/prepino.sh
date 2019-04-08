@@ -10,7 +10,7 @@ ino="https://raw.githubusercontent.com/gregg127/Bazyliszek/tests/bazyliszek/bazy
 liblist="https://lidar.filipow.eu/files/liblist.txt"
 
 #url of makefile
-mkfile="https://lidar.filipow.eu/files/Makefile"
+mkfile="https://raw.githubusercontent.com/gregg127/Bazyliszek/tests/bazyliszek/Makefile.txt"
 
 ## CONFIG ##
 ############
@@ -46,7 +46,7 @@ else
         done
         cd /home/pi/"$1"/sketchbook
         wget -O sketch.ino $ino
-        wget $mkfile
+        wget -O Makefile $mkfile
         make
         cd /home/pi/"$1"
         rm -rf tmp
