@@ -76,6 +76,49 @@ int servo_position = 0;
 
 Adafruit_SSD1306 display(OLED_RESET);
 
+// === FUNCTION HEADERS
+void setup();
+void set_pin_modes();
+void initialize_servo();
+void attach_interrupts();
+void setup_oled();
+void print_oled_welcome_prompt();
+void print_oled_rotation_input(int input, int enA_speed, int enB_speed);
+void loop();
+void check_bluetooth_state();
+void move_robot(int cm, bool forward);
+int pid_control(double cm_total, double cm_driven, double propotion, double integral, double derivative, double *sum, double *previous_error, unsigned long *prev_mils);
+void rotate(int value);
+int back_sonar();
+void check_sonar_nonblocking();
+int infrared();
+void velocity(int value_pwm);
+bool check_interval(unsigned int dt, unsigned int prev_dt, int interval);
+double measure_velocity(double *previous_rotation, double current_rotation, unsigned long current_millis, unsigned long *previous_millis);
+double pid_control_velocity(double other_velocity, double *my_vel, double p, double i, double d, double *sum, double *previous_error);
+void stop_motors();
+void serwo(int angle);
+int measure_sonar_distance();
+void encoder_a_interrupt_handler();
+void encoder_b_interrupt_handler();
+void update_oled();
+void display_char(char c, boolean listed, String extra_info);
+void write_oled_rotation_count(double a_rotation_counter, double b_rotation_counter, double rotation_quantity);
+void analog_write_motors(int analog_pin, int analog_val);
+void on(int pin);
+void off(int pin);
+void a_forward();
+void b_forward();
+void a_backward();
+void b_backward();
+void a_free_stop();
+void b_free_stop();
+void a_fast_stop();
+void b_fast_stop();
+void load_received_data();
+void load_speed_value();
+// =======
+
 void setup()
 {
   Serial.begin(9600);
