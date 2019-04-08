@@ -376,7 +376,6 @@ int pid_control(double cm_total, double cm_driven, double propotion, double inte
   *previous_error = error;
   *sum += error;
   int pwm = (propotion * error) + (integral * (*sum)) + (derivative * delta);
-  //Serial.println("Error\t" + String(int(error)) + "\t Delta:\t" + String(delta) + " Prev err\t" + String(*previous_error) + " Sum\t" + String(*sum) + " PWM \t" + String(pwm));
   //int pwm = (100+propotion*error);
   if (pwm > 255)
   {
