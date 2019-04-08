@@ -4,7 +4,7 @@
 ## CONFIG ##
 
 #ino file path
-ino="https://raw.githubusercontent.com/gregg127/Bazyliszek/master/bazyliszek/bazyliszek.ino"
+ino="https://raw.githubusercontent.com/gregg127/Bazyliszek/tests/bazyliszek/bazyliszek.ino"
 
 #urls of external libs
 liblist="https://lidar.filipow.eu/files/liblist.txt"
