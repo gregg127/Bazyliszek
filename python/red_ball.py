@@ -4,12 +4,16 @@ import serial
 import time
 import sys
 
-COM_PORT = '/dev/ttyUSB0'  # for debug: COM1
+COM_PORT = 'COM1'  # for debug: COM1
 BAUD_RATE = 9600
 DELAY = 0.5
 EROSION_ITERATIONS = 0
 DILATION_ITERATIONS = 0
 
+CAMERA_WIDTH = 640
+MIN_ANGLE = 35
+MAX_ANGLE = 125
+DEGREE = CAMERA_WIDTH / (MIN_ANGLE + MAX_ANGLE)
 
 def main():
     init()
@@ -43,12 +47,13 @@ def main():
         if moment["m00"] != 0:
             # Calculate x and y coordinates of blob center from the moment
             cx = int(moment["m10"] / moment["m00"])
-            cy = int(moment["m01"] / moment["m00"])
-            # Add blue circle to the center of found blob to res_sum
-            cv.circle(res_sum, (cx, cy), 5, (255, 0, 0), -1)
+            if MODE == "debug": 
+                cy = int(moment["m01"] / moment["m00"])
+                # Add blue circle to the center of found blob to res_sum
+                cv.circle(res_sum, (cx, cy), 5, (255, 0, 0), -1)
             # Sending found x coordinate of centroid to serial port
             if MODE == "serial":
-                data_to_send = get_protocol_flag(cx)
+                data_to_send = get_protocol_flag(calculate_angle(cx))
                 send_data(data_to_send)
                 time.sleep(DELAY)
             calculate_ball_size(dilation)  # Not used yet
@@ -153,6 +158,10 @@ def send_data(text):
 
 def calculate_ball_size(mask):
     return (cv.countNonZero(mask) / total_pixels) * 100
+
+
+def calculate_angle(x):
+    return int(x / DEGREE)
 
 
 if __name__ == '__main__':
