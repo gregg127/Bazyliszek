@@ -57,6 +57,9 @@ int previous_state;
 int current_state;
 boolean wants_to_be_printed = true;
 
+//Keep speed for move fun
+int move_speed = 0;
+
 // Functions headers
 void setup();
 void set_pin_modes();
@@ -230,8 +233,8 @@ void move_robot(int cm, bool forward)
     a_backward();
     b_backward();
   }
-  analog_write_motors(enA, 255);
-  analog_write_motors(enB, 255);
+  analog_write_motors(enA, move_speed);
+  analog_write_motors(enB, move_speed);
   double propotion = 1.51;  // propocja 255 -> 100 = 155 to jest zjazd
   double integral = 0.01;   // calka - stala wartosc przez ktora mnozy sie sume
   double derivative = 1.51; // pochodona - stala wartosc przez ktora mnozy sie roznice
@@ -331,7 +334,11 @@ const double i = -0.0149; // calka - stala wartosc przez ktora mnozy sie sume
 const double d = -19;     // pochodona - stala wartosc przez ktora mnozy sie roznice
 const short dt_increase_rate = 100;
 
-void velocity(int value_pwm)
+void velocity(int value_pwm) {
+  move_speed = value_pwm;
+}
+
+void velocityOld(int value_pwm)
 {
   a_forward();
   b_forward();
