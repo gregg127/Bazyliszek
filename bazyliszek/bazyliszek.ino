@@ -336,21 +336,27 @@ void velocity(int value_pwm) {
   move_speed = value_pwm;
 }
 
-void velocityOld(int value_pwm)
+void drive(int cm, bool direction)
 {
-  a_forward();
-  b_forward();
+  if(direction) {
+    a_forward();
+    b_forward();
+  } else {
+    a_backwards();
+    b_backwards();
+  }
 
+  //TODO  resetownaie liczników pwmów
   a_rotation_counter = 0;
   b_rotation_counter = 0;
 
-  // soft start
+  //TODO kalibracja
   int start_value = 30;
   unsigned long sofstart_offset = millis();
   int x = 30;
 
-  Serial.println("[Softstart] start");
-  while (x <= value_pwm)
+  //SOFTstart loop
+  while (x <= move_speed)
   {
     if ((millis() - sofstart_offset) % 100 == 0)
     {
@@ -359,8 +365,6 @@ void velocityOld(int value_pwm)
       x++;
     }
   }
-  Serial.println("[Softstart] end");
-
   // ustawienie zmiennych pomocniczych do PIDa
   double a_sum = 0;        // integral part
   double a_previous_error; // derivative part
@@ -407,11 +411,11 @@ void velocityOld(int value_pwm)
         current_millis = millis();
         a_vel = measure_velocity(&a_previous_rotation, a_rotation_counter, current_millis, &a_prev_millis);
         b_vel = measure_velocity(&b_previous_rotation, b_rotation_counter, current_millis, &b_prev_millis);
-        Serial.println(pwn_b);
+        //Serial.println(pwn_b);
       }
       else
       {
-        Serial.println("[FIRST VEL CHECK OMMITTED]");
+        //Serial.println("[FIRST VEL CHECK OMMITTED]");
         first_vel = false;
       }
     }
@@ -427,12 +431,21 @@ void velocityOld(int value_pwm)
     // === ustawienie wartosci PWM silnika B na podstawie obliczen z PIDa
     pwn_b = pid_control_velocity(a_vel, &b_vel, p, i, d, &b_sum, &b_previous_error);
     analog_write_motors(enB, pwn_b);
+    if()
   }
 
   // === zahamowanie dwoma silnikami
   a_fast_stop();
   b_fast_stop();
 }
+bool distance_reached(int cm) {
+  return (cm>=calculate_distance);
+}
+float calculate_distance() {
+  //TODO zwróć odległość na podstawie śrenidej enkoderów
+  return 0;
+}
+
 bool check_interval(unsigned int dt, unsigned int prev_dt, int interval)
 {
   return (dt % interval == 0) && (dt != prev_dt) && (dt > 0);
@@ -499,54 +512,6 @@ void encoder_b_interrupt_handler()
     b_rotation_counter++;
   }
   last_time_b = interrupt_time;
-}
-
-void update_oled()
-{
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  display.print("enA:");
-  display.setCursor(25, 0);
-  display.print(enA_value);
-  display.setCursor(60, 0);
-  display.print("enB:");
-  display.setCursor(85, 0);
-  display.print(enB_value);
-  display.setCursor(0, 16);
-  display.print("sr:");
-  display.setCursor(20, 16);
-  display.print(servo_position);
-  display.display();
-}
-
-void display_char(char c, boolean listed, String extra_info)
-{
-  char ctp = c - 32;
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  display.print("Bazyliszek 0.1\nUser input:\n");
-  display.print(ctp);
-  if (!listed)
-    display.print(" - unknown command");
-  display.print(extra_info);
-  display.display();
-}
-
-void write_oled_rotation_count(double a_rotation_counter, double b_rotation_counter, double rotation_quantity)
-{
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  display.print("to drive: ");
-  display.print(rotation_quantity);
-  display.print("\ndrivenA: ");
-  display.print(a_rotation_counter);
-  display.print("\ndrivenB: ");
-  display.print(b_rotation_counter);
-  display.print("\npwmA: ");
-  display.print(enA_value);
-  display.print("  pwmB: ");
-  display.print(enB_value);
-  display.display();
 }
 
 void analog_write_motors(int analog_pin, int analog_val)
