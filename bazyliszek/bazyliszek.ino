@@ -4,7 +4,7 @@
 #include "libraries/Adafruit_GFX/Adafruit_GFX.h"
 #include "libraries/Adafruit_SSD1306/Adafruit_SSD1306.h"
 
-#include <arduino.h>
+#include "myoled/myoled.h"
 
 //Motor A
 //Silnik A
@@ -55,6 +55,9 @@ char read_value_chars[4] = ""; // tymczasowa tablica przechowujaca odczytana war
 int previous_state;
 int current_state;
 boolean wants_to_be_printed = true;
+
+//TODO to delete
+int enA_value, enB_value;
 
 
 
@@ -120,57 +123,6 @@ void attach_interrupts()
 {
   attachInterrupt(digitalPinToInterrupt(interruptA_pin), encoder_a_interrupt_handler, CHANGE);
   attachInterrupt(digitalPinToInterrupt(interruptB_pin), encoder_b_interrupt_handler, CHANGE);
-}
-
-void setup_oled()
-{
-  String info = "Bazyliszek 0.1\n\nWaiting for\nuser input";
-  display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // initialize with the I2C addr 0x3C (for the 128x32)
-
-  // Show image buffer on the display hardware. Since the buffer is intialized with
-  // an Adafruit splashscreen internally, this will display the splashscreen.
-  display.display();
-
-  // Clear the buffer.
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
-  print_oled_welcome_prompt();
-}
-
-void print_oled_welcome_prompt()
-{
-  String info = "Bazyliszek 0.1\n" + bluetooth_status + "\n\nWaiting for input";
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  display.print(info);
-  display.display();
-}
-
-void print_oled_rotation_input(int input, int enA_speed, int enB_speed)
-{
-  char left = 24;
-  char right = 25;
-  char arrow;
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  String arrows = "";
-  if (enB_speed > enA_speed)
-  {
-    arrow = 24; //left
-  }
-  else
-  {
-    arrow = 25; //right
-  }
-  int iterations = max(enA_speed, enB_speed);
-  iterations = int(((double)iterations) / 11.25);
-  for (int i = 0; i < iterations; i++)
-  {
-    arrows += arrow;
-  }
-  display.print("Bazyliszek szuka...\nX <0; 640>: " + String(input) + "\n" + arrows + "\nenA: " + String(enA_speed) + "     enB: " + String(enB_speed));
-  display.display();
 }
 
 void loop()
@@ -342,8 +294,8 @@ void drive(int cm, bool direction)
     a_forward();
     b_forward();
   } else {
-    a_backwards();
-    b_backwards();
+    a_backward();
+    b_backward();
   }
 
   //TODO  resetownaie liczników pwmów
@@ -431,7 +383,7 @@ void drive(int cm, bool direction)
     // === ustawienie wartosci PWM silnika B na podstawie obliczen z PIDa
     pwn_b = pid_control_velocity(a_vel, &b_vel, p, i, d, &b_sum, &b_previous_error);
     analog_write_motors(enB, pwn_b);
-    if()
+    if(true);
   }
 
   // === zahamowanie dwoma silnikami
@@ -439,7 +391,7 @@ void drive(int cm, bool direction)
   b_fast_stop();
 }
 bool distance_reached(int cm) {
-  return (cm>=calculate_distance);
+  return (cm>=calculate_distance());
 }
 float calculate_distance() {
   //TODO zwróć odległość na podstawie śrenidej enkoderów
