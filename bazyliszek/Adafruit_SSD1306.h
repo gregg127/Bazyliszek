@@ -38,7 +38,7 @@
 
 #include <Wire.h>
 #include <SPI.h>
-#include "/home/bazyliszek/Desktop/baz/Bazyliszek/bazyliszek/libraries/Adafruit_GFX/Adafruit_GFX.h"
+#include "Adafruit_GFX.h"
 
 #if defined(__AVR__)
   typedef volatile uint8_t  PortReg;

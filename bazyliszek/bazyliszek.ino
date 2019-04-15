@@ -3,6 +3,7 @@
 #include <Wire.h>
 
 #include "myoled.h"
+#include "motors.h"
 
 //Motor A
 //Silnik A
@@ -433,12 +434,6 @@ double pid_control_velocity(double other_velocity, double *my_vel,
   return int(pid_output_pwm);
 }
 
-void stop_motors()
-{
-  a_fast_stop();
-  b_fast_stop();
-}
-
 //Handling interrupts
 void encoder_a_interrupt_handler()
 {
@@ -460,70 +455,12 @@ void encoder_b_interrupt_handler()
   last_time_b = interrupt_time;
 }
 
+//TODO delete this useless fun
 void analog_write_motors(int analog_pin, int analog_val)
 {
   analogWrite(analog_pin, analog_val);
-  if (analog_pin == enA)
-  {
-    enA_value = analog_val;
-  }
-  else if (analog_pin == enB)
-  {
-    enB_value = analog_val;
-  }
 }
 
-void on(int pin)
-{
-  digitalWrite(pin, HIGH);
-}
-
-void off(int pin)
-{
-  digitalWrite(pin, LOW);
-}
-
-void a_forward()
-{
-  on(in1);
-  off(in2);
-}
-
-void b_forward()
-{
-  on(in3);
-  off(in4);
-}
-void a_backward()
-{
-  off(in1);
-  on(in2);
-}
-void b_backward()
-{
-  off(in3);
-  on(in4);
-}
-void a_free_stop()
-{
-  off(enA);
-}
-void b_free_stop()
-{
-  off(enB);
-}
-void a_fast_stop()
-{
-  on(enA);
-  off(in1);
-  off(in2);
-}
-void b_fast_stop()
-{
-  on(enB);
-  off(in3);
-  off(in4);
-}
 
 // ======= funkcje czytania z portu szeregowego
 // ----- Dzialanie protokolu ------
