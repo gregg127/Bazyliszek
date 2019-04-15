@@ -5,9 +5,10 @@ Protokol:
     reset odometry - resetowanie stałych na 0
     send_odometry - wyslanie na port szeregowy informacji o odometrii
 Packety:
-    mXXX - move forward
-    bXXX - move backward
-    rXXX - rotate
-    vXXX - velocity
-    d000 - reset odometry
-    s000 - send odometry    
+    mXXX - move forward (0-999)
+    bXXX - move backward (0-999)
+    rXXX - rotate (0-360)
+    vXXX - velocity (0-255)
+    o000 - reset odometry ()
+    s000 - send odometry ()
+
