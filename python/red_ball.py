@@ -4,13 +4,15 @@ import serial
 import time
 import sys
 
-COM_PORT = 'COM1'  # for debug: COM1
+COM_PORT = 'COM1'
 BAUD_RATE = 9600
-DELAY = 0.5
+DELAY = 0.3
 EROSION_ITERATIONS = 0
 DILATION_ITERATIONS = 0
 
+CAMERA_HEIGHT = 480
 CAMERA_WIDTH = 640
+FPS = 20
 MIN_ANGLE = 30      
 MAX_ANGLE = 150
 DEGREE = CAMERA_WIDTH / (MIN_ANGLE + MAX_ANGLE)
@@ -18,6 +20,12 @@ DEGREE = CAMERA_WIDTH / (MIN_ANGLE + MAX_ANGLE)
 def main():
     init()
     cap = cv.VideoCapture(0)
+    cap.set(cv.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
+    cap.set(cv.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
+    cap.set(cv.CAP_PROP_FPS, FPS)
+    print("FPS : {}".format(cap.get(cv.CAP_PROP_FPS)))
+    print("Width: {}".format(cap.get(cv.CAP_PROP_FRAME_WIDTH)))
+    print("Height: {}".format(cap.get(cv.CAP_PROP_FRAME_HEIGHT)))
     # Elliptic matrix as a kernel of detection
     morph_kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
     global total_pixels
@@ -26,10 +34,10 @@ def main():
     lower_color_second, upper_color_second = get_second_mask_colors()
     while True:
         # Take some amount of frames to fight with delays and save the last one
-        for i in range(0, int(cap.get(cv.CAP_PROP_FPS) * DELAY)):
-            ret, frame = cap.read()
-        if DELAY == 0:
-            ret, frame = cap.read()
+        # for i in range(0, int(cap.get(cv.CAP_PROP_FPS) * DELAY)):
+        #     ret, frame = cap.read()
+        # if DELAY == 0:
+        ret, frame = cap.read()
         # Convert RGB to HSV
         hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
         # First mask needed only for red color, in other cases this will be the same as second mask
