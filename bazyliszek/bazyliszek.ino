@@ -46,6 +46,10 @@ int b_rotation_counter = 0;
 int enA_value = 0;
 int enB_value = 0;
 
+// set speed of motors used in move function
+int given_enA_value = 220;
+int given_enB_value = 220;
+
 //serial port communication variables
 char bytes_read[4];            // tablica 4 bajtow do odczytywania danych
 char control;                  // znak sterowania - m,r,b,c,v,s,o
@@ -177,29 +181,32 @@ void loop()
   if (Serial.available() >= 4)
   {
     load_received_data();
+    // oled info
+    boolean listed = true;
+    String extra_info = " " + String(read_value);
     // Do sterowania nalezy korzystac ze zmiennych:
     // control - znak sterowania
     // read_value - wartosc odczytana, moze byc 0
-    boolean listed = true;
-    String extra_info = " " + String(read_value);
-
     switch (control)
     {
-    case 'm':
+    case 'm': // move forward: args: distance , true - forward
       move_robot(read_value, true);
       break;
-    case 'b':
+    case 'b': // move backward: args: distance, false - backwards
       move_robot(read_value, false);
       break;
-    case 'r':
+    case 'r': // rotate: args: global angle, just like servo mechanism
       rotate(read_value);
       wants_to_be_printed = false;
       break;
-    case 'v':
+    case 'v': // set values to global variables of how fast motors are running in move
       velocity(read_value);
       break;
-    case 's': // stop motors
-      stop_motors();
+    case 'o': // set global odometry values to 0, no arguments, just the flag
+      reset_odometry();
+      break;
+    case 's': // send odometry to serial port
+      send_odometry();
       break;
     default:
       listed = false;
@@ -230,8 +237,8 @@ void move_robot(int cm, bool forward)
     a_backward();
     b_backward();
   }
-  analog_write_motors(enA, 255);
-  analog_write_motors(enB, 255);
+  analog_write_motors(enA, given_enA_value);
+  analog_write_motors(enB, given_enB_value);
   double propotion = 1.51;  // propocja 255 -> 100 = 155 to jest zjazd
   double integral = 0.01;   // calka - stala wartosc przez ktora mnozy sie sume
   double derivative = 1.51; // pochodona - stala wartosc przez ktora mnozy sie roznice
@@ -469,6 +476,16 @@ double pid_control_velocity(double other_velocity, double *my_vel,
   return int(pid_output_pwm);
 }
 
+void reset_odometry()
+{
+  //TODO: implement
+}
+
+void send_odometry()
+{
+  //TODO: implement
+}
+
 void stop_motors()
 {
   a_fast_stop();
@@ -507,10 +524,6 @@ void update_oled()
   display.print("enB:");
   display.setCursor(85, 0);
   display.print(enB_value);
-  display.setCursor(0, 16);
-  display.print("sr:");
-  display.setCursor(20, 16);
-  display.print(servo_position);
   display.display();
 }
 

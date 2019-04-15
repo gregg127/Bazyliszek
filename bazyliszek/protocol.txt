@@ -1,7 +1,7 @@
 Protokol:
     move - argument dystans w cm i zmienna bool czy do przodu, czy do tylu, cel: przejechanie danego dystansu
     rotate - argument kat, cel: obrocenie robota o dany kat
-    velocity - danie na silniki danego pwma
+    velocity - ustawienie zmiennych PWM ktore maja 
     reset odometry - resetowanie stałych na 0
     send_odometry - wyslanie na port szeregowy informacji o odometrii
 Packety:
@@ -11,3 +11,11 @@ Packety:
     vXXX - velocity
     d000 - reset odometry
     s000 - send odometry    
+
+Dzialanie funkcji move:
+    Szybszy silnik jedzie z zadanym przez funkcje velocity PWMem, a wolniejszy silnik
+    dostosowuje swojego PWMa korzystając z regulatora PID i enkoderów aby jechać prosto.
+    W ten sposób robot będzie sie poruszał po linii prostej.
+    Przejechany dystans będzie zliczany w pętli z PIDem na podstawie sredniej arytmetycznej
+    liczby przerwań enkoderów. Jeżeli zostanie osiągnięty zadany dystans, następuje fast stop
+    silników
