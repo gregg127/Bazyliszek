@@ -1,9 +1,9 @@
-#include <Servo.h>
 #include <math.h>
 #include <SPI.h>
 #include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include "libraries/Adafruit_GFX/Adafruit_GFX.h"
+#include "libraries/Adafruit_SSD1306/Adafruit_SSD1306.h"
+
 #include <arduino.h>
 
 //Motor A
