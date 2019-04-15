@@ -11,4 +11,3 @@ Packety:
     vXXX - velocity (0-255)
     o000 - reset odometry ()
     s000 - send odometry ()
-
