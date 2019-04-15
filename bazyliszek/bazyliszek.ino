@@ -147,7 +147,7 @@ void loop()
       velocity(read_value);
       break;
     case 's': // stop motors
-      MyMotors::MyMotors::stop_motors();
+      MyMotors::stop_motors();
       break;
     default:
       listed = false;
@@ -180,9 +180,15 @@ void move_robot(int cm, bool forward)
   }
   analog_write_motors(enA, move_speed);
   analog_write_motors(enB, move_speed);
-  double propotion = 1.51;  // propocja 255 -> 100 = 155 to jest zjazd
-  double integral = 0.01;   // calka - stala wartosc przez ktora mnozy sie sume
-  double derivative = 1.51; // pochodona - stala wartosc przez ktora mnozy sie roznice
+
+  // propocja 255 -> 100 = 155 to jest zjazd
+  double propotion = 1.51;  
+
+  // calka - stala wartosc przez ktora mnozy sie sume
+  double integral = 0.01;   
+
+  // pochodona - stala wartosc przez ktora mnozy sie roznice
+  double derivative = 1.51; 
 
   double a_sum = 0;             // for integral part
   double a_previous_error = cm; // for derivative part
