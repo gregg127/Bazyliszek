@@ -42,9 +42,8 @@ static unsigned long last_time_b = 0;
 int a_rotation_counter = 0;
 int b_rotation_counter = 0;
 
-//current PWM value for motors
-int enA_value = 0;
-int enB_value = 0;
+//Keep speed for move fun
+int move_speed = 0;
 
 //serial port communication variables
 char bytes_read[4];            // tablica 4 bajtow do odczytywania danych
@@ -57,8 +56,7 @@ int previous_state;
 int current_state;
 boolean wants_to_be_printed = true;
 
-//Keep speed for move fun
-int move_speed = 0;
+
 
 // Functions headers
 void setup();
