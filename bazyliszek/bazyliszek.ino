@@ -60,9 +60,9 @@ int enA_value, enB_value;
 // void setup();
 // void set_pin_modes();
 // void attach_interrupts();
-// void setup_oled();
-// void print_oled_welcome_prompt();
-// void print_oled_rotation_input(int input, int enA_speed, int enB_speed);
+// void MyOled::setup_oled();
+// void MyOled::print_oled_welcome_prompt();
+// void MyOled::print_oled_rotation_input(int input, int enA_speed, int enB_speed);
 // void loop();
 // void move_robot(int cm, bool forward);
 // int pid_control(double cm_total, double cm_driven, double propotion, double integral, double derivative, double *sum, double *previous_error, unsigned long *prev_mils);
@@ -71,23 +71,23 @@ int enA_value, enB_value;
 // bool check_interval(unsigned int dt, unsigned int prev_dt, int interval);
 // double measure_velocity(double *previous_rotation, double current_rotation, unsigned long current_millis, unsigned long *previous_millis);
 // double pid_control_velocity(double other_velocity, double *my_vel, double p, double i, double d, double *sum, double *previous_error);
-// void stop_motors();
+// void MyMotors::stop_motors();
 // void encoder_a_interrupt_handler();
 // void encoder_b_interrupt_handler();
 // void update_oled();
-// void display_char(char c, boolean listed, String extra_info);
-// void write_oled_rotation_count(double a_rotation_counter, double b_rotation_counter, double rotation_quantity);
+// void MyOled::display_char(char c, boolean listed, String extra_info);
+// void MyOled::write_oled_rotation_count(double a_rotation_counter, double b_rotation_counter, double rotation_quantity);
 // void analog_write_motors(int analog_pin, int analog_val);
 // void on(int pin);
 // void off(int pin);
-// void a_forward();
-// void b_forward();
-// void a_backward();
-// void b_backward();
+// void MyMotors::a_forward();
+// void MyMotors::b_forward();
+// void MyMotors::a_backward();
+// void MyMotors::b_backward();
 // void a_free_stop();
 // void b_free_stop();
-// void a_fast_stop();
-// void b_fast_stop();
+// void MyMotors::a_fast_stop();
+// void MyMotors::b_fast_stop();
 // void load_received_data();
 // void load_speed_value();
 
@@ -96,7 +96,7 @@ void setup()
   Serial.begin(115200);
   set_pin_modes();
   attach_interrupts();
-  setup_oled();
+  MyOled::setup_oled();
 }
 
 void set_pin_modes()
@@ -147,7 +147,7 @@ void loop()
       velocity(read_value);
       break;
     case 's': // stop motors
-      stop_motors();
+      MyMotors::MyMotors::stop_motors();
       break;
     default:
       listed = false;
@@ -155,7 +155,7 @@ void loop()
     }
     if (wants_to_be_printed)
     {
-      display_char(control, listed, extra_info);
+      MyOled::display_char(control, listed, extra_info);
     }
   }
 }
@@ -170,13 +170,13 @@ void move_robot(int cm, bool forward)
   b_rotation_counter = 0; // wyzerowanie licznika obrotow dla silnika B
   if (forward)
   {
-    a_forward();
-    b_forward();
+    MyMotors::a_forward();
+    MyMotors::b_forward();
   }
   else
   {
-    a_backward();
-    b_backward();
+    MyMotors::a_backward();
+    MyMotors::b_backward();
   }
   analog_write_motors(enA, move_speed);
   analog_write_motors(enB, move_speed);
@@ -201,7 +201,7 @@ void move_robot(int cm, bool forward)
 
   while (true)
   {
-    write_oled_rotation_count(a_cm, b_cm, cm);
+    MyOled::write_oled_rotation_count(a_cm, b_cm, cm);
 
     a_cm = a_rotation_counter * click_to_cm_ratio;
     b_cm = b_rotation_counter * click_to_cm_ratio;
@@ -215,8 +215,8 @@ void move_robot(int cm, bool forward)
     analog_write_motors(enA, pwm_a);
     analog_write_motors(enB, pwm_b);
   }
-  stop_motors();
-  print_oled_welcome_prompt();
+  MyMotors::stop_motors();
+  MyOled::print_oled_welcome_prompt();
 }
 
 // PID
@@ -251,16 +251,16 @@ void rotate(int value)
   char offset = 50;
   if ((value > 0) && (value <= desired))
   {
-    b_forward();
-    a_backward();
+    MyMotors::b_forward();
+    MyMotors::a_backward();
     to_write_b = int((((double)(desired - value) / desired) * max_pwm_value)) + offset;
     analogWrite(enB, to_write_b);
     analogWrite(enA, 0);
   }
   else if ((value > desired) && (value <= desired * 2))
   {
-    a_forward();
-    b_backward();
+    MyMotors::a_forward();
+    MyMotors::b_backward();
     value = value - desired;
     to_write_a = int((((double)(value) / desired) * max_pwm_value)) + offset;
     analogWrite(enA, to_write_a);
@@ -268,10 +268,10 @@ void rotate(int value)
   }
   else
   {
-    a_fast_stop();
-    b_fast_stop();
+    MyMotors::a_fast_stop();
+    MyMotors::b_fast_stop();
   }
-  print_oled_rotation_input(my_value, to_write_a, to_write_b);
+  MyOled::print_oled_rotation_input(my_value, to_write_a, to_write_b);
 }
 
 const double p = -22;     // propocja 255 -> 100 = 155 to jest zjazd
@@ -286,11 +286,11 @@ void velocity(int value_pwm) {
 void drive(int cm, bool direction)
 {
   if(direction) {
-    a_forward();
-    b_forward();
+    MyMotors::a_forward();
+    MyMotors::b_forward();
   } else {
-    a_backward();
-    b_backward();
+    MyMotors::a_backward();
+    MyMotors::b_backward();
   }
 
   //TODO  resetownaie liczników pwmów
@@ -382,8 +382,8 @@ void drive(int cm, bool direction)
   }
 
   // === zahamowanie dwoma silnikami
-  a_fast_stop();
-  b_fast_stop();
+  MyMotors::a_fast_stop();
+  MyMotors::b_fast_stop();
 }
 bool distance_reached(int cm) {
   return (cm>=calculate_distance());

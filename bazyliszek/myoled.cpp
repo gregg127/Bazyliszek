@@ -11,7 +11,7 @@
 #define OLED_RESET 4
 Adafruit_SSD1306 display(OLED_RESET);
 
-void display_char(char c, boolean listed, String extra_info)
+void MyOled::display_char(char c, boolean listed, String extra_info)
 {
   char ctp = c - 32;
   display.clearDisplay();
@@ -24,7 +24,7 @@ void display_char(char c, boolean listed, String extra_info)
   display.display();
 }
 
-void write_oled_rotation_count(double a_rotation_counter, double b_rotation_counter, double rotation_quantity)
+void MyOled::write_oled_rotation_count(double a_rotation_counter, double b_rotation_counter, double rotation_quantity)
 {
   display.clearDisplay();
   display.setCursor(0, 0);
@@ -40,7 +40,7 @@ void write_oled_rotation_count(double a_rotation_counter, double b_rotation_coun
   //display.print(enB_value);
   display.display();
 }
-void setup_oled()
+void MyOled::setup_oled()
 {
   String info = "Bazyliszek 0.1\n\nWaiting for\nuser input";
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // initialize with the I2C addr 0x3C (for the 128x32)
@@ -56,7 +56,7 @@ void setup_oled()
   print_oled_welcome_prompt();
 }
 
-void print_oled_welcome_prompt()
+void MyOled::print_oled_welcome_prompt()
 {
   String info = "Bazyliszek 0.1\n\n\nWaiting for input";
   display.clearDisplay();
@@ -65,7 +65,7 @@ void print_oled_welcome_prompt()
   display.display();
 }
 
-void print_oled_rotation_input(int input, int enA_speed, int enB_speed)
+void MyOled::print_oled_rotation_input(int input, int enA_speed, int enB_speed)
 {
   char left = 24;
   char right = 25;
