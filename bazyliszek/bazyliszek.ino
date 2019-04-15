@@ -18,17 +18,6 @@
 #define in4 8
 #define enB 11
 
-//Sonar
-#define sonar_pin_trigger A2
-#define sonar_pin_echo A3
-
-//Infrared sensor
-//Czujnik odleglosci na podczerwien
-#define infrared_input A0
-
-//Servo
-#define infrared_serwo A1
-
 //Encoders
 #define interruptA_pin 2
 #define interruptB_pin 3
@@ -39,67 +28,51 @@ String bluetooth_status = "";
 int prev_bluetooth_state = 3;
 
 //OLED parameters
-//Parametry OLEDa
-#define LOGO16_GLCD_HEIGHT 16
-#define LOGO16_GLCD_WIDTH 16
 #define OLED_RESET 4
+Adafruit_SSD1306 display(OLED_RESET);
 
 int rotatorA = 1; // TODO
 int rotatorB = 1; // TODO
 
-//Servo object
-//Obiekt servo
-Servo infrared_servo;
-
 //When interrupt was fired recently
-//Kiedy ostatnio wystapilo przerwanie
 static unsigned long last_time_a = 0;
 static unsigned long last_time_b = 0;
 
 //Rotation counters
-//Liczniki obrotow osi
 int a_rotation_counter = 0;
 int b_rotation_counter = 0;
 
-//curent PWM value for motors
-//Aktualne PWM silnikow
+//current PWM value for motors
 int enA_value = 0;
 int enB_value = 0;
 
-//Back sonar reading
-//Odczyt ultradzwiekowego czujnika odleglosci
-int back_sonar_reading = 1000;
-unsigned long back_sonar_previousMillis = 0;
+//serial port communication variables
+char bytes_read[4];            // tablica 4 bajtow do odczytywania danych
+char control;                  // znak sterowania - m,r,b,c,v,s,o
+int read_value;                // odczytana wartosc
+char read_value_chars[4] = ""; // tymczasowa tablica przechowujaca odczytana wartosc + '\0' (znak konca linii)
 
-//curent servo position
-//Aktualna pozyja servo
-int servo_position = 0;
+// TODO : check whats this
+int previous_state;
+int current_state;
+boolean wants_to_be_printed = true;
 
-Adafruit_SSD1306 display(OLED_RESET);
-
-// === FUNCTION HEADERS
+// Functions headers
 void setup();
 void set_pin_modes();
-void initialize_servo();
 void attach_interrupts();
 void setup_oled();
 void print_oled_welcome_prompt();
 void print_oled_rotation_input(int input, int enA_speed, int enB_speed);
 void loop();
-void check_bluetooth_state();
 void move_robot(int cm, bool forward);
 int pid_control(double cm_total, double cm_driven, double propotion, double integral, double derivative, double *sum, double *previous_error, unsigned long *prev_mils);
 void rotate(int value);
-int back_sonar();
-void check_sonar_nonblocking();
-int infrared();
 void velocity(int value_pwm);
 bool check_interval(unsigned int dt, unsigned int prev_dt, int interval);
 double measure_velocity(double *previous_rotation, double current_rotation, unsigned long current_millis, unsigned long *previous_millis);
 double pid_control_velocity(double other_velocity, double *my_vel, double p, double i, double d, double *sum, double *previous_error);
 void stop_motors();
-void serwo(int angle);
-int measure_sonar_distance();
 void encoder_a_interrupt_handler();
 void encoder_b_interrupt_handler();
 void update_oled();
@@ -118,64 +91,43 @@ void a_fast_stop();
 void b_fast_stop();
 void load_received_data();
 void load_speed_value();
-// =======
 
 void setup()
 {
   Serial.begin(115200);
-
   set_pin_modes();
-
-  initialize_servo();
-
   attach_interrupts();
-
   setup_oled();
 }
 
 void set_pin_modes()
-{ //Setting I/O pins
-  //Ustawienie pinow wejscia i wyjscia
+{
   pinMode(in1, OUTPUT);
   pinMode(in2, OUTPUT);
   pinMode(in3, OUTPUT);
   pinMode(in4, OUTPUT);
-  //pinMode(enA, OUTPUT);
-  //pinMode(enB, OUTPUT);
+  pinMode(enA, OUTPUT);
+  pinMode(enB, OUTPUT);
   pinMode(interruptA_pin, INPUT);
   pinMode(interruptB_pin, INPUT);
   pinMode(bluetooth_state, INPUT);
   analogWrite(enA, 0);
   analogWrite(enB, 0);
-
-  pinMode(sonar_pin_trigger, OUTPUT);
-  pinMode(sonar_pin_echo, INPUT);
-}
-
-void initialize_servo()
-{
-  infrared_servo.attach(infrared_serwo);
-  //infrared_servo.setMaximumPulse(2000);//FIXME
-  //infrared_servo.setMinimumPulse(500);//FIXME
 }
 
 void attach_interrupts()
-{ //Attaching functions to interrupts
-  //Przypisanie funkcji do przerwan
+{
   attachInterrupt(digitalPinToInterrupt(interruptA_pin), encoder_a_interrupt_handler, CHANGE);
   attachInterrupt(digitalPinToInterrupt(interruptB_pin), encoder_b_interrupt_handler, CHANGE);
 }
 
 void setup_oled()
-{ //Set up and prompt on OLED
-  //Ustawienie i wiadomosc powitalna na OLEDzie
+{
   String info = "Bazyliszek 0.1\n\nWaiting for\nuser input";
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // initialize with the I2C addr 0x3C (for the 128x32)
-  // init done
 
-  // Show image buffer on the display hardware.
-  // Since the buffer is intialized with an Adafruit splashscreen
-  // internally, this will display the splashscreen.
+  // Show image buffer on the display hardware. Since the buffer is intialized with
+  // an Adafruit splashscreen internally, this will display the splashscreen.
   display.display();
 
   // Clear the buffer.
@@ -184,15 +136,16 @@ void setup_oled()
   display.setTextColor(WHITE);
   print_oled_welcome_prompt();
 }
+
 void print_oled_welcome_prompt()
-{ //Printing prompt on OLED
-  //Wyswietlenie wiadomosci powitalnej na ekranie
+{
   String info = "Bazyliszek 0.1\n" + bluetooth_status + "\n\nWaiting for input";
   display.clearDisplay();
   display.setCursor(0, 0);
   display.print(info);
   display.display();
 }
+
 void print_oled_rotation_input(int input, int enA_speed, int enB_speed)
 {
   char left = 24;
@@ -215,29 +168,15 @@ void print_oled_rotation_input(int input, int enA_speed, int enB_speed)
   {
     arrows += arrow;
   }
-
   display.print("Bazyliszek szuka...\nX <0; 640>: " + String(input) + "\n" + arrows + "\nenA: " + String(enA_speed) + "     enB: " + String(enB_speed));
   display.display();
 }
 
-// == protokol kontrolowania przez port szeregowy == GG
-char bytes_read[4];            // tablica 4 bajtow do odczytywania danych
-char control;                  // znak sterowania - m,r,b,c,v,s,o
-int read_value;                // odczytana wartosc
-char read_value_chars[4] = ""; // tymczasowa tablica przechowujaca odczytana wartosc + '\0' (znak konca linii)
-// ========
-int previous_state;
-int current_state;
-boolean wants_to_be_printed = true;
-
 void loop()
 {
-  check_bluetooth_state();
-  //check_sonar_nonblocking();
-
   if (Serial.available() >= 4)
-  {                       // GG
-    load_received_data(); // GG
+  {
+    load_received_data();
     // Do sterowania nalezy korzystac ze zmiennych:
     // control - znak sterowania
     // read_value - wartosc odczytana, moze byc 0
@@ -246,66 +185,35 @@ void loop()
 
     switch (control)
     {
-    case 'm':                       // move
-      move_robot(read_value, true); // GG
+    case 'm':
+      move_robot(read_value, true);
       break;
-    case 'n':
+    case 'b':
       move_robot(read_value, false);
       break;
-    case 'r':             // rotate
-      rotate(read_value); // GG
+    case 'r':
+      rotate(read_value);
       wants_to_be_printed = false;
       break;
-    case 'b': // back sonar
-      extra_info = "\nSonar: ";
-      extra_info += String(back_sonar());
-      extra_info += "cm";
-      break;
-    case 'c': // IR infra
-      extra_info = "\nIR: ";
-      extra_info += String(infrared());
-      extra_info += "cm";
-      break;
-    case 'v': // velocity
+    case 'v':
       velocity(read_value);
       break;
     case 's': // stop motors
       stop_motors();
-      break;
-    case 'o': // serwo mechanism
-      extra_info = "\nServo: ";
-      extra_info += String(read_value);
-      extra_info += "'";
-      serwo(read_value); // kat jako arg
       break;
     default:
       listed = false;
       break;
     }
     if (wants_to_be_printed)
+    {
       display_char(control, listed, extra_info);
+    }
   }
-}
-
-void check_bluetooth_state()
-{
-  //  String bt_ok = "BT: connected";
-  //  String bt_wait = "BT: no connection";
-  //  int state = digitalRead(bluetooth_state);
-  //  if (prev_bluetooth_state!=state) {
-  //    prev_bluetooth_state=state;
-  //   if(state==HIGH) {
-  //       bluetooth_status=bt_ok;
-  //    } else if(state==LOW) {
-  //       bluetooth_status=bt_wait;
-  //    }
-  //    print_oled_welcome_prompt();
-  //  }
 }
 
 void move_robot(int cm, bool forward)
 { //Move robot for the delared distance, measured in encoder readings
-  //Przesuniecie robota o zadana odleglosc liczona w odczytach enkoderow
 
   double click_to_cm_ratio = 0.6; // dystans w cm przejechany przy jednym obrocie kolka
   double a_cm = 0;
@@ -383,10 +291,10 @@ int pid_control(double cm_total, double cm_driven, double propotion, double inte
 
   return pwm;
 }
-// ===
+
 void rotate(int value)
 {
-  a_rotation_counter = b_rotation_counter = 0; //zerowanie liczników
+  a_rotation_counter = b_rotation_counter = 0;
   double desired = 320;
   int to_write_a = 0;
   int to_write_b = 0;
@@ -418,75 +326,6 @@ void rotate(int value)
   print_oled_rotation_input(my_value, to_write_a, to_write_b);
 }
 
-int back_sonar()
-{
-  int dist = measure_sonar_distance();
-  Serial.println(dist);
-  //Serial.println(dist);
-  return (dist);
-}
-
-//Variables used in non-delay checking of sonar reading
-//Zmienne pomocnicze obslugi sonara bez opoznien
-int trigState = LOW;
-int interval = 1;     // interval in milliseconds at which trigPin turns on
-int interval2 = 1000; //time in milliseconds at which the distance is printed in serial monitors
-int printState = LOW;
-
-void check_sonar_nonblocking()
-{
-  unsigned long currentMillis = millis(); //time in milliseconds from which the code was started
-  if (currentMillis - back_sonar_previousMillis >= interval)
-  { //check "blink without delay" code
-    back_sonar_previousMillis = currentMillis;
-    if (trigState == LOW)
-    {
-      (trigState = HIGH);
-    }
-    else
-    {
-      (trigState = LOW);
-    }
-  }
-  // printing if statement
-  if (currentMillis - back_sonar_previousMillis >= interval2)
-  { //check "blink without delay" code
-    back_sonar_previousMillis = currentMillis;
-    if (printState == LOW)
-    {
-      (printState = HIGH);
-    }
-    else
-    {
-      (printState = LOW);
-    }
-  }
-  digitalWrite(sonar_pin_trigger, trigState);
-  int duration, distance; //variables
-  duration = pulseIn(sonar_pin_echo, HIGH);
-  distance = (duration / 2) / 29.1;
-  if (printState = HIGH)
-  {
-    if (distance != 0)
-    {
-      back_sonar_reading = distance;
-      //Serial.print(distance);
-      //Serial.println("cm");}
-    }
-  }
-}
-int infrared()
-{ //Measure and calculate distance from infrared sensor
-  //Zmierzenie i wyliczenie odleglosci z czujnika odleglosci na podczerwien
-  double val = analogRead(infrared_input); // odczyt
-  int cm = 10650.08 * pow(val, -0.935) - 10;
-  if (cm > 150)
-  {
-    cm = -1;
-  }
-  return (cm);
-}
-
 const double p = -22;     // propocja 255 -> 100 = 155 to jest zjazd
 const double i = -0.0149; // calka - stala wartosc przez ktora mnozy sie sume
 const double d = -19;     // pochodona - stala wartosc przez ktora mnozy sie roznice
@@ -494,15 +333,13 @@ const short dt_increase_rate = 100;
 
 void velocity(int value_pwm)
 {
-  // === ustawienie dwoch silnikow na jazde prosto
   a_forward();
   b_forward();
 
-  // === wyzerowanie wartosci licznikow rotacji enkoderow dzialajacych na przerwaniach
   a_rotation_counter = 0;
   b_rotation_counter = 0;
 
-  // === soft start
+  // soft start
   int start_value = 30;
   unsigned long sofstart_offset = millis();
   int x = 30;
@@ -519,16 +356,15 @@ void velocity(int value_pwm)
   }
   Serial.println("[Softstart] end");
 
-  // === ustawienie zmiennych pomocniczych do PIDa
+  // ustawienie zmiennych pomocniczych do PIDa
   double a_sum = 0;        // integral part
   double a_previous_error; // derivative part
-  unsigned long a_prev_millis = millis();
-  unsigned long b_prev_millis = millis();
   double b_sum = 0;        // integral part
   double b_previous_error; // derivative part
   bool first_delta_error = true;
-
-  // === ustawienie zmiennych sluzacych do obliczania predkosci silnikow
+  unsigned long a_prev_millis = millis();
+  unsigned long b_prev_millis = millis();
+  // ustawienie zmiennych sluzacych do obliczania predkosci silnikow
   short interval = 250;
 
   double a_previous_rotation = 0;
@@ -586,25 +422,6 @@ void velocity(int value_pwm)
     // === ustawienie wartosci PWM silnika B na podstawie obliczen z PIDa
     pwn_b = pid_control_velocity(a_vel, &b_vel, p, i, d, &b_sum, &b_previous_error);
     analog_write_motors(enB, pwn_b);
-
-    // === odczytanie pomiarow z czujnika podczerwieni
-    if ((millis() % 50) == 0)
-    {
-      infrared_distance = infrared();
-      if (infrared_distance != -1)
-      {
-        infrared_counter++;
-      }
-      else if (infrared_counter > 0)
-      {
-        infrared_counter--;
-      }
-
-      if (infrared_counter == 20)
-      {
-        break;
-      }
-    }
   }
 
   // === zahamowanie dwoma silnikami
@@ -657,38 +474,10 @@ void stop_motors()
   a_fast_stop();
   b_fast_stop();
 }
-void serwo(int angle)
-{
-  infrared_servo.write(angle);
-  servo_position = angle;
-}
-
-int measure_sonar_distance()
-{
-  //[DEPRECATED]
-  //[DEPRECATED]
-  //[DEPRECATED]
-  int maximumRange = 200;  // Maximum range needed
-  int minimumRange = 0;    // Minimum range needed
-  long duration, distance; // Duration used to calculate distance
-  on(sonar_pin_trigger);
-  delayMicroseconds(10);
-  off(sonar_pin_trigger);
-  duration = pulseIn(sonar_pin_echo, HIGH);
-  distance = duration / 58.2;
-  delayMicroseconds(100);                                   // !!!!!!
-  if (distance >= maximumRange || distance <= minimumRange) // "out of range"
-    return -1;
-  else
-    return distance;
-}
 
 //Handling interrupts
-//Obsluga przerwan
-
 void encoder_a_interrupt_handler()
 {
-  ////Serial.println("A inter");
   unsigned long interrupt_time = millis();
   if (interrupt_time - last_time_a > 1)
   {
@@ -699,10 +488,9 @@ void encoder_a_interrupt_handler()
 
 void encoder_b_interrupt_handler()
 {
-  //Serial.println("B inter");
   unsigned long interrupt_time = millis();
   if (interrupt_time - last_time_b > 1)
-  { // 1ms opoznienia
+  {
     b_rotation_counter++;
   }
   last_time_b = interrupt_time;
@@ -719,10 +507,6 @@ void update_oled()
   display.print("enB:");
   display.setCursor(85, 0);
   display.print(enB_value);
-  display.setCursor(0, 8);
-  display.print("l:");
-  display.setCursor(15, 8);
-  display.print(infrared());
   display.setCursor(0, 16);
   display.print("sr:");
   display.setCursor(20, 16);
@@ -825,7 +609,7 @@ void b_fast_stop()
   off(in4);
 }
 
-//======= funkcje czytania z portu szeregowego
+// ======= funkcje czytania z portu szeregowego
 // ----- Dzialanie protokolu ------
 // postac flagi: znak + trzy cyfry, no. f259, b000
 // protokol umozliwia wysylanie dowolnej wartosci

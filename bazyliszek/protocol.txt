@@ -1,0 +1,13 @@
+Protokol:
+    move - argument dystans w cm i zmienna bool czy do przodu, czy do tylu, cel: przejechanie danego dystansu
+    rotate - argument kat, cel: obrocenie robota o dany kat
+    velocity - danie na silniki danego pwma
+    reset odometry - resetowanie stałych na 0
+    send_odometry - wyslanie na port szeregowy informacji o odometrii
+Packety:
+    mXXX - move forward
+    bXXX - move backward
+    rXXX - rotate
+    vXXX - velocity
+    d000 - reset odometry
+    s000 - send odometry    
