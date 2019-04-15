@@ -1,4 +1,16 @@
+#include<string.h>
+#include "Adafruit_GFX.h"
+#include "Adafruit_SSD1306.h"
 #include "myoled.h"
+
+//OLED parameters
+#define OLED_RESET 4
+//Parametry OLEDa
+#define LOGO16_GLCD_HEIGHT 16
+#define LOGO16_GLCD_WIDTH  16
+#define OLED_RESET 4
+Adafruit_SSD1306 display(OLED_RESET);
+
 void display_char(char c, boolean listed, String extra_info)
 {
   char ctp = c - 32;
@@ -23,9 +35,9 @@ void write_oled_rotation_count(double a_rotation_counter, double b_rotation_coun
   display.print("\ndrivenB: ");
   display.print(b_rotation_counter);
   display.print("\npwmA: ");
-  display.print(enA_value);
+  //display.print(enA_value);
   display.print("  pwmB: ");
-  display.print(enB_value);
+  //display.print(enB_value);
   display.display();
 }
 void setup_oled()
@@ -46,7 +58,7 @@ void setup_oled()
 
 void print_oled_welcome_prompt()
 {
-  String info = "Bazyliszek 0.1\n" + bluetooth_status + "\n\nWaiting for input";
+  String info = "Bazyliszek 0.1\n\n\nWaiting for input";
   display.clearDisplay();
   display.setCursor(0, 0);
   display.print(info);

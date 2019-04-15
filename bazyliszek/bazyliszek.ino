@@ -1,10 +1,8 @@
 #include <math.h>
 #include <SPI.h>
 #include <Wire.h>
-#include "libraries/Adafruit_GFX/Adafruit_GFX.h"
-#include "libraries/Adafruit_SSD1306/Adafruit_SSD1306.h"
 
-#include "myoled/myoled.h"
+#include "myoled.h"
 
 //Motor A
 //Silnik A
@@ -26,10 +24,6 @@
 #define bluetooth_state A6
 String bluetooth_status = "";
 int prev_bluetooth_state = 3;
-
-//OLED parameters
-#define OLED_RESET 4
-Adafruit_SSD1306 display(OLED_RESET);
 
 int rotatorA = 1; // TODO
 int rotatorB = 1; // TODO
@@ -62,39 +56,39 @@ int enA_value, enB_value;
 
 
 // Functions headers
-void setup();
-void set_pin_modes();
-void attach_interrupts();
-void setup_oled();
-void print_oled_welcome_prompt();
-void print_oled_rotation_input(int input, int enA_speed, int enB_speed);
-void loop();
-void move_robot(int cm, bool forward);
-int pid_control(double cm_total, double cm_driven, double propotion, double integral, double derivative, double *sum, double *previous_error, unsigned long *prev_mils);
-void rotate(int value);
-void velocity(int value_pwm);
-bool check_interval(unsigned int dt, unsigned int prev_dt, int interval);
-double measure_velocity(double *previous_rotation, double current_rotation, unsigned long current_millis, unsigned long *previous_millis);
-double pid_control_velocity(double other_velocity, double *my_vel, double p, double i, double d, double *sum, double *previous_error);
-void stop_motors();
-void encoder_a_interrupt_handler();
-void encoder_b_interrupt_handler();
-void update_oled();
-void display_char(char c, boolean listed, String extra_info);
-void write_oled_rotation_count(double a_rotation_counter, double b_rotation_counter, double rotation_quantity);
-void analog_write_motors(int analog_pin, int analog_val);
-void on(int pin);
-void off(int pin);
-void a_forward();
-void b_forward();
-void a_backward();
-void b_backward();
-void a_free_stop();
-void b_free_stop();
-void a_fast_stop();
-void b_fast_stop();
-void load_received_data();
-void load_speed_value();
+// void setup();
+// void set_pin_modes();
+// void attach_interrupts();
+// void setup_oled();
+// void print_oled_welcome_prompt();
+// void print_oled_rotation_input(int input, int enA_speed, int enB_speed);
+// void loop();
+// void move_robot(int cm, bool forward);
+// int pid_control(double cm_total, double cm_driven, double propotion, double integral, double derivative, double *sum, double *previous_error, unsigned long *prev_mils);
+// void rotate(int value);
+// void velocity(int value_pwm);
+// bool check_interval(unsigned int dt, unsigned int prev_dt, int interval);
+// double measure_velocity(double *previous_rotation, double current_rotation, unsigned long current_millis, unsigned long *previous_millis);
+// double pid_control_velocity(double other_velocity, double *my_vel, double p, double i, double d, double *sum, double *previous_error);
+// void stop_motors();
+// void encoder_a_interrupt_handler();
+// void encoder_b_interrupt_handler();
+// void update_oled();
+// void display_char(char c, boolean listed, String extra_info);
+// void write_oled_rotation_count(double a_rotation_counter, double b_rotation_counter, double rotation_quantity);
+// void analog_write_motors(int analog_pin, int analog_val);
+// void on(int pin);
+// void off(int pin);
+// void a_forward();
+// void b_forward();
+// void a_backward();
+// void b_backward();
+// void a_free_stop();
+// void b_free_stop();
+// void a_fast_stop();
+// void b_fast_stop();
+// void load_received_data();
+// void load_speed_value();
 
 void setup()
 {
