@@ -18,7 +18,7 @@ Motor::Motor(char _direction_pin_1, char _direction_pin_2, char _pwm_pin, char _
          //Czas ostatniej zmiany enkodera
         encoder_timestamp = millis();
 
-        attachInterrupt(digitalPinToInterrupt(encoder_pin_1), interrupt_handler, CHANGE);
+        //attachInterrupt(digitalPinToInterrupt(encoder_pin_1), interrupt_handler, CHANGE);
 }
 
 //Tryb jazdy do przodu
