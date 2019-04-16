@@ -1,46 +1,31 @@
 # 1 "c:\\Users\\Krzysztof Filipow\\Documents\\dyplomowa\\bazyliszek\\bazyliszek\\bazyliszek.ino"
 # 1 "c:\\Users\\Krzysztof Filipow\\Documents\\dyplomowa\\bazyliszek\\bazyliszek\\bazyliszek.ino"
-# 2 "c:\\Users\\Krzysztof Filipow\\Documents\\dyplomowa\\bazyliszek\\bazyliszek\\bazyliszek.ino" 2
-# 3 "c:\\Users\\Krzysztof Filipow\\Documents\\dyplomowa\\bazyliszek\\bazyliszek\\bazyliszek.ino" 2
-# 4 "c:\\Users\\Krzysztof Filipow\\Documents\\dyplomowa\\bazyliszek\\bazyliszek\\bazyliszek.ino" 2
-
+//================================================================================
+//                                   DOŁĄCZANIE
+//================================================================================
+# 5 "c:\\Users\\Krzysztof Filipow\\Documents\\dyplomowa\\bazyliszek\\bazyliszek\\bazyliszek.ino" 2
 # 6 "c:\\Users\\Krzysztof Filipow\\Documents\\dyplomowa\\bazyliszek\\bazyliszek\\bazyliszek.ino" 2
 # 7 "c:\\Users\\Krzysztof Filipow\\Documents\\dyplomowa\\bazyliszek\\bazyliszek\\bazyliszek.ino" 2
 
-//Motor A
-//Silnik A
+# 9 "c:\\Users\\Krzysztof Filipow\\Documents\\dyplomowa\\bazyliszek\\bazyliszek\\bazyliszek.ino" 2
+# 10 "c:\\Users\\Krzysztof Filipow\\Documents\\dyplomowa\\bazyliszek\\bazyliszek\\bazyliszek.ino" 2
 
+//==============================================================================
+//                          KONFIGURACJA (STAŁE)
+//==============================================================================
+# 26 "c:\\Users\\Krzysztof Filipow\\Documents\\dyplomowa\\bazyliszek\\bazyliszek\\bazyliszek.ino"
+//================================================================================
+//                                   ZMIENNE GLOBALNE
+//================================================================================
 
+//Lewy silnik
+Motor left_motor = Motor(7, 5, 6, 2);
 
+//Prawy silnik
+Motor right_motor = Motor(9, 8, 6, 3);
 
-//Motor B
-//Silnik B
-
-
-
-
-//Encoders
-
-
-
-//Bluetooth
-
-String bluetooth_status = "";
-int prev_bluetooth_state = 3;
-
-int rotatorA = 1; // TODO
-int rotatorB = 1; // TODO
-
-//When interrupt was fired recently
-static unsigned long last_time_a = 0;
-static unsigned long last_time_b = 0;
-
-//Rotation counters
-int a_rotation_counter = 0;
-int b_rotation_counter = 0;
-
-//Keep speed for move fun
-int move_speed = 0;
+//Prędkość ustawiana w funkcji velocity, definuje z jaki pwm ma być podawany na silniki w funkcji move
+unsigned char target_velocity;
 
 //serial port communication variables
 char bytes_read[4]; // tablica 4 bajtow do odczytywania danych
@@ -49,78 +34,52 @@ int read_value; // odczytana wartosc
 char read_value_chars[4] = ""; // tymczasowa tablica przechowujaca odczytana wartosc + '\0' (znak konca linii)
 
 // TODO : check whats this
-int previous_state;
-int current_state;
 boolean wants_to_be_printed = true;
 
-//TODO to delete
-int enA_value, enB_value;
+//Funkcje obsługujące przerwania lewego silnika, w przyszłości mają znaleźć się w strukturze Motor
+void left_motor_interrupt()
+{
+  left_motor.interrupt();
+}
+
+//Funkcje obsługujące przerwania prawego silnika, w przyszłości mają znaleźć się w strukturze Motor
+void right_motor_interrupt()
+{
+  right_motor.interrupt();
+}
+
+//Utworzenie struktur dla obydwu silników
+void init_motors()
+{
+  //left_motor =
+  //right_motor = 
+}
+
+//Przypisanie funkcji obsługującej przerwania z enkoderów
+void attach_interrupts()
+{
+  attachInterrupt(((left_motor.encoder_pin_1) == 2 ? 0 : ((left_motor.encoder_pin_1) == 3 ? 1 : ((left_motor.encoder_pin_1) >= 18 && (left_motor.encoder_pin_1) <= 21 ? 23 - (left_motor.encoder_pin_1) : -1))), left_motor_interrupt, 3);
+  attachInterrupt(((right_motor.encoder_pin_1) == 2 ? 0 : ((right_motor.encoder_pin_1) == 3 ? 1 : ((right_motor.encoder_pin_1) >= 18 && (right_motor.encoder_pin_1) <= 21 ? 23 - (right_motor.encoder_pin_1) : -1))), right_motor_interrupt, 3);
+}
 
 
-
-// Functions headers
-// void setup();
-// void set_pin_modes();
-// void attach_interrupts();
-// void MyOled::setup_oled();
-// void MyOled::print_oled_welcome_prompt();
-// void MyOled::print_oled_rotation_input(int input, int enA_speed, int enB_speed);
-// void loop();
-// void move_robot(int cm, bool forward);
-// int pid_control(double cm_total, double cm_driven, double propotion, double integral, double derivative, double *sum, double *previous_error, unsigned long *prev_mils);
-// void rotate(int value);
-// void velocity(int value_pwm);
-// bool check_interval(unsigned int dt, unsigned int prev_dt, int interval);
-// double measure_velocity(double *previous_rotation, double current_rotation, unsigned long current_millis, unsigned long *previous_millis);
-// double pid_control_velocity(double other_velocity, double *my_vel, double p, double i, double d, double *sum, double *previous_error);
-// void MyMotors::stop_motors();
-// void encoder_a_interrupt_handler();
-// void encoder_b_interrupt_handler();
-// void update_oled();
-// void MyOled::display_char(char c, boolean listed, String extra_info);
-// void MyOled::write_oled_rotation_count(double a_rotation_counter, double b_rotation_counter, double rotation_quantity);
-// void analog_write_motors(int analog_pin, int analog_val);
-// void on(int pin);
-// void off(int pin);
-// void MyMotors::a_forward();
-// void MyMotors::b_forward();
-// void MyMotors::a_backward();
-// void MyMotors::b_backward();
-// void a_free_stop();
-// void b_free_stop();
-// void MyMotors::a_fast_stop();
-// void MyMotors::b_fast_stop();
-// void load_received_data();
-// void load_speed_value();
 
 void setup()
 {
   Serial.begin(115200);
   set_pin_modes();
+  init_motors();
   attach_interrupts();
   MyOled::setup_oled();
 }
 
 void set_pin_modes()
 {
-  pinMode(7, 0x1);
-  pinMode(5, 0x1);
-  pinMode(9, 0x1);
-  pinMode(8, 0x1);
-  pinMode(6, 0x1);
-  pinMode(11, 0x1);
-  pinMode(2, 0x0);
-  pinMode(3, 0x0);
-  pinMode(A6, 0x0);
-  analogWrite(6, 0);
-  analogWrite(11, 0);
+  pinMode(bluetooth_state, 0x0);
+  analogWrite(enA, 0);
+  analogWrite(enB, 0);
 }
 
-void attach_interrupts()
-{
-  attachInterrupt(((2) == 2 ? 0 : ((2) == 3 ? 1 : ((2) >= 18 && (2) <= 21 ? 23 - (2) : -1))), encoder_a_interrupt_handler, 1);
-  attachInterrupt(((3) == 2 ? 0 : ((3) == 3 ? 1 : ((3) >= 18 && (3) <= 21 ? 23 - (3) : -1))), encoder_b_interrupt_handler, 1);
-}
 
 void loop()
 {
@@ -172,16 +131,17 @@ void move_robot(int cm, bool forward)
   b_rotation_counter = 0; // wyzerowanie licznika obrotow dla silnika B
   if (forward)
   {
-    MyMotors::a_forward();
-    MyMotors::b_forward();
+    left_motor.forward();
+    right_motor.forward();
   }
   else
   {
-    MyMotors::a_backward();
-    MyMotors::b_backward();
+    left_motor.backward();
+    right_motor.backward();
   }
-  analog_write_motors(6, move_speed);
-  analog_write_motors(11, move_speed);
+
+  left_motor.pwm(target_velocity);
+  right_motor.pwm(target_velocity);
 
   // propocja 255 -> 100 = 155 to jest zjazd
   double propotion = 1.51;
@@ -201,9 +161,8 @@ void move_robot(int cm, bool forward)
 
   for (int i = 0; i < 200; i += 1)
   {
-    analogWrite(6, i);
-    analogWrite(11, i);
-    enA_value = enB_value = i;
+    left_motor.pwm(i);
+    right_motor.pwm(i);
     delay(1);
   }
 
@@ -220,8 +179,8 @@ void move_robot(int cm, bool forward)
     {
       break;
     }
-    analog_write_motors(6, pwm_a);
-    analog_write_motors(11, pwm_b);
+    left_motor.pwm(pwm_a);
+    right_motor.pwm(pwm_b);
   }
   MyMotors::stop_motors();
   MyOled::print_oled_welcome_prompt();
@@ -248,7 +207,7 @@ int pid_control(double cm_total, double cm_driven, double propotion, double inte
   return pwm;
 }
 
-void rotate(int value)
+void rotate(int value) //TODO
 {
   a_rotation_counter = b_rotation_counter = 0;
   double desired = 320;
@@ -262,8 +221,8 @@ void rotate(int value)
     MyMotors::b_forward();
     MyMotors::a_backward();
     to_write_b = int((((double)(desired - value) / desired) * max_pwm_value)) + offset;
-    analogWrite(11, to_write_b);
-    analogWrite(6, 0);
+    analogWrite(enB, to_write_b);
+    analogWrite(enA, 0);
   }
   else if ((value > desired) && (value <= desired * 2))
   {
@@ -271,8 +230,8 @@ void rotate(int value)
     MyMotors::b_backward();
     value = value - desired;
     to_write_a = int((((double)(value) / desired) * max_pwm_value)) + offset;
-    analogWrite(6, to_write_a);
-    analogWrite(11, 0);
+    analogWrite(enA, to_write_a);
+    analogWrite(enB, 0);
   }
   else
   {
@@ -288,22 +247,22 @@ const double d = -19; // pochodona - stala wartosc przez ktora mnozy sie roznice
 const short dt_increase_rate = 100;
 
 void velocity(int value_pwm) {
-  move_speed = value_pwm;
+  target_velocity = value_pwm;
 }
 
 void drive(int cm, bool direction)
 {
   if(direction) {
-    MyMotors::a_forward();
-    MyMotors::b_forward();
+    left_motor.forward();
+    right_motor.forward();
   } else {
-    MyMotors::a_backward();
-    MyMotors::b_backward();
+    left_motor.backward();
+    right_motor.backward();
   }
 
   //TODO  resetownaie liczników pwmów
-  a_rotation_counter = 0;
-  b_rotation_counter = 0;
+  left_motor.reset_encoder_counter();
+  right_motor.reset_encoder_counter();
 
   //TODO kalibracja
   int start_value = 30;
@@ -311,12 +270,12 @@ void drive(int cm, bool direction)
   int x = 30;
 
   //SOFTstart loop
-  while (x <= move_speed)
+  while (x <= target_velocity)
   {
     if ((millis() - sofstart_offset) % 100 == 0)
     {
-      analogWrite(6, x);
-      analogWrite(11, x - start_value);
+      left_motor.pwm(x);
+      right_motor.pwm(x - start_value);
       x++;
     }
   }
@@ -385,13 +344,13 @@ void drive(int cm, bool direction)
 
     // === ustawienie wartosci PWM silnika B na podstawie obliczen z PIDa
     pwn_b = pid_control_velocity(a_vel, &b_vel, p, i, d, &b_sum, &b_previous_error);
-    analog_write_motors(11, pwn_b);
+    analog_write_motors(enB, pwn_b);
     if(true);
   }
 
   // === zahamowanie dwoma silnikami
-  MyMotors::a_fast_stop();
-  MyMotors::b_fast_stop();
+  left_motor.fstop();
+  right_motor.fstop();
 }
 bool distance_reached(int cm) {
   return (cm>=calculate_distance());

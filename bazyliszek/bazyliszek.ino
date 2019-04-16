@@ -6,7 +6,6 @@
 #include <Wire.h>
 
 #include "myoled.h"
-#include "motors.h"
 #include "motor.h"
 
 //==============================================================================
@@ -29,10 +28,10 @@
 //================================================================================
 
 //Lewy silnik
-Motor left_motor;
+Motor left_motor = Motor(MOTOR_LEFT_DIR_1, MOTOR_LEFT_DIR_2, MOTOR_LEFT_PWM, MOTOR_LEFT_ENC);
 
 //Prawy silnik
-Motor right_motor;
+Motor right_motor = Motor(MOTOR_RIGHT_DIR_1, MOTOR_RIGHT_DIR_2, MOTOR_LEFT_PWM, MOTOR_RIGHT_ENC);
 
 //Prędkość ustawiana w funkcji velocity, definuje z jaki pwm ma być podawany na silniki w funkcji move
 unsigned char target_velocity;
@@ -59,10 +58,10 @@ void right_motor_interrupt()
 }
 
 //Utworzenie struktur dla obydwu silników
-init_motors()
+void init_motors()
 {
-  left_motor = new Motor(MOTOR_LEFT_DIR_1, MOTOR_LEFT_DIR_2, MOTOR_LEFT_PWM, MOTOR_LEFT_ENC);
-  right_motor = new Motor(MOTOR_RIGHT_DIR_1, MOTOR_RIGHT_DIR_2, MOTOR_LEFT_PWM, MOTOR_RIGHT_ENC);
+  //left_motor =
+  //right_motor = 
 }
 
 //Przypisanie funkcji obsługującej przerwania z enkoderów
@@ -85,14 +84,6 @@ void setup()
 
 void set_pin_modes()
 {
-  pinMode(in1, OUTPUT);
-  pinMode(in2, OUTPUT);
-  pinMode(in3, OUTPUT);
-  pinMode(in4, OUTPUT);
-  pinMode(enA, OUTPUT);
-  pinMode(enB, OUTPUT);
-  pinMode(interruptA_pin, INPUT);
-  pinMode(interruptB_pin, INPUT);
   pinMode(bluetooth_state, INPUT);
   analogWrite(enA, 0);
   analogWrite(enB, 0);
