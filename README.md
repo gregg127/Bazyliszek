@@ -1,3 +1,3 @@
 # Robot jezdzacy 'Bazyliszek'
 ---
-Tutaj w przyszlosci pokaze sie opis robota i zrobimy z tego publiczny projekt open-source :)
+Trzykołowy robot napędzany dwoma silnikami z enkoderami magnetycznymi. Robot wykorzystywany do badań nad odometrią i ogólną lokalizacją.
