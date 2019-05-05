@@ -1,24 +1,23 @@
-#include<string.h>
+#include <string.h>
 #include "Adafruit_GFX.h"
 #include "Adafruit_SSD1306.h"
 #include "myoled.h"
 
-//OLED parameters
-#define OLED_RESET 4
 //Parametry OLEDa
+#define OLED_RESET 4
 #define LOGO16_GLCD_HEIGHT 16
-#define LOGO16_GLCD_WIDTH  16
+#define LOGO16_GLCD_WIDTH 16
 #define OLED_RESET 4
 Adafruit_SSD1306 display(OLED_RESET);
 
-void MyOled::display_char(char c, boolean listed, String extra_info)
+void MyOled::display_char(char c, boolean command_available, String extra_info)
 {
   char ctp = c - 32;
   display.clearDisplay();
   display.setCursor(0, 0);
   display.print("Bazyliszek 0.1\nUser input:\n");
   display.print(ctp);
-  if (!listed)
+  if (!command_available)
     display.print(" - unknown command");
   display.print(extra_info);
   display.display();
@@ -34,9 +33,9 @@ void MyOled::write_oled_rotation_count(double a_rotation_counter, double b_rotat
   display.print(a_rotation_counter);
   display.print("\ndrivenB: ");
   display.print(b_rotation_counter);
-  display.print("\npwmA: ");
+  //display.print("\npwmA: ");
   //display.print(enA_value);
-  display.print("  pwmB: ");
+  //display.print("  pwmB: ");
   //display.print(enB_value);
   display.display();
 }

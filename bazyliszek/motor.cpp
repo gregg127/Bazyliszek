@@ -1,68 +1,62 @@
 #include "motor.h"
-#include <Arduino.h>
+#include "Arduino.h"
 
-
-
-//Konstruktor z ustawieniem wejść/wyjść dla silnika
-Motor::Motor(char _direction_pin_1, char _direction_pin_2, char _pwm_pin, char _encoder_pin_1)
+Motor::Motor(char _dir_pin_1, char _dir_pin_2, char _pwm_pin, char _enc_pin)
 {
-        direction_pin_1 = _direction_pin_1;
-        direction_pin_2 = _direction_pin_2;
-        pwm_pin = _pwm_pin;
-        encoder_pin_1 = _encoder_pin_1;
-        pinMode(direction_pin_1, OUTPUT);
-        pinMode(direction_pin_2, OUTPUT);
-        pinMode(pwm_pin, OUTPUT);
-        pinMode(encoder_pin_1, INPUT);
+    dir_pin_1 = _dir_pin_1;
+    dir_pin_2 = _dir_pin_2;
+    pwm_pin = _pwm_pin;
+    enc_pin = _enc_pin;
 
-        //Licznik zmian stanu enkodera
-        encoder_counter = 0;
+    pinMode(dir_pin_1, OUTPUT);
+    pinMode(dir_pin_2, OUTPUT);
+    pinMode(pwm_pin, OUTPUT);
+    pinMode(enc_pin, INPUT);
 
-         //Czas ostatniej zmiany enkodera
-        encoder_timestamp = millis();
-
-        //attachInterrupt(digitalPinToInterrupt(encoder_pin_1), interrupt_handler, CHANGE);
+    encoder_counter = 0L;
+    encoder_timestamp = millis();
 }
 
-//Tryb jazdy do przodu
 void Motor::forward()
 {
-    digitalWrite(direction_pin_1, HIGH);
-    digitalWrite(direction_pin_2, LOW);
+    digitalWrite(dir_pin_1, HIGH);
+    digitalWrite(dir_pin_2, LOW);
 }
 
-//Tryb jazdy do tyłu
 void Motor::backward()
 {
-    digitalWrite(direction_pin_1, LOW);
-    digitalWrite(direction_pin_2, HIGH);
+    digitalWrite(dir_pin_1, LOW);
+    digitalWrite(dir_pin_2, HIGH);
 }
-//Szybkie zatrzymanie
-void Motor::fstop() {
-    analogWrite(pwm_pin, 255);
-    digitalWrite(direction_pin_1, LOW);
-    digitalWrite(direction_pin_2, LOW);
+
+void Motor::fast_stop()
+{
+    analogWrite(pwm_pin, 255); // ???
+    digitalWrite(dir_pin_1, LOW);
+    digitalWrite(dir_pin_2, LOW);
 }
-//zatrzymanie
+
 void Motor::stop()
 {
     analogWrite(pwm_pin, 0);
 }
-//Ustawienie mocy
-void Motor::pwm(unsigned char new_pwm)
+
+void Motor::pwm(unsigned char pwm)
 {
-    analogWrite(pwm_pin, new_pwm);
+    analogWrite(pwm_pin, pwm);
 }
 
-//Obsłużenie przerwania
 void Motor::interrupt()
 {
-    encoder_counter++;
+    unsigned long interrupt_time = millis();
+    if (interrupt_time - encoder_timestamp > 1)
+    {
+        encoder_counter++;
+    }
+    encoder_timestamp = interrupt_time;
 }
 
-//Wyzerowanie licznika obrotów
 void Motor::reset_encoder_counter()
 {
-    encoder_counter = 0;
+    encoder_counter = 0L;
 }
-

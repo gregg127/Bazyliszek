@@ -1,6 +1,3 @@
-//================================================================================
-//                                   DOŁĄCZANIE
-//================================================================================
 #include <math.h>
 #include <SPI.h>
 #include <Wire.h>
@@ -11,7 +8,6 @@
 //==============================================================================
 //                          KONFIGURACJA (STAŁE)
 //==============================================================================
-
 #define MOTOR_LEFT_DIR_1 7
 #define MOTOR_LEFT_DIR_2 5
 #define MOTOR_LEFT_PWM 6
@@ -19,88 +15,77 @@
 
 #define MOTOR_RIGHT_DIR_1 9
 #define MOTOR_RIGHT_DIR_2 8
-#define MOTOR_RIGHT_PWM 6
+#define MOTOR_RIGHT_PWM 11
 #define MOTOR_RIGHT_ENC 3
 
+#define PID_P_MOVE 1.51 // propocja - 255 -> 100 = 155 to jest zjazd
+#define PID_I_MOVE 0.01 // calka - stala wartosc przez ktora mnozy sie sume
+#define PID_D_MOVE 1.51 // pochodna - stala wartosc przez ktora mnozy sie roznice
+
+#define PID_P_DRIVE -22      // propocja - 255 -> 100 = 155 to jest zjazd
+#define PID_I_DRIVE -0.0149  // calka - stala wartosc przez ktora mnozy sie sume
+#define PID_D_DRIVE -19      // pochodna - stala wartosc przez ktora mnozy sie roznice
+#define DT_INCREASE_RATE 100 // funkja drive
 
 //================================================================================
-//                                   ZMIENNE GLOBALNE
+//                          ZMIENNE GLOBALNE
 //================================================================================
-
-//Lewy silnik
 Motor left_motor = Motor(MOTOR_LEFT_DIR_1, MOTOR_LEFT_DIR_2, MOTOR_LEFT_PWM, MOTOR_LEFT_ENC);
-
-//Prawy silnik
 Motor right_motor = Motor(MOTOR_RIGHT_DIR_1, MOTOR_RIGHT_DIR_2, MOTOR_LEFT_PWM, MOTOR_RIGHT_ENC);
 
-//Prędkość ustawiana w funkcji velocity, definuje z jaki pwm ma być podawany na silniki w funkcji move
+// Prędkość ustawiana w funkcji velocity, definuje jaki pwm ma być podawany na silniki w funkcji move
 unsigned char target_velocity;
 
-//serial port communication variables
+// Zmienne obslugujace komunikacje na porcie szeregowym
 char bytes_read[4];            // tablica 4 bajtow do odczytywania danych
-char control;                  // znak sterowania - m,r,b,c,v,s,o
+char control;                  // znak sterowania
 int read_value;                // odczytana wartosc
 char read_value_chars[4] = ""; // tymczasowa tablica przechowujaca odczytana wartosc + '\0' (znak konca linii)
 
-// TODO : check whats this
-boolean wants_to_be_printed = true;
+// Zmienna ktora ustawia czy dane otrzymane przez port szeregowym powinny byc drukowane na wyswietlaczu OLED
+boolean oled_info_debug_print = true;
 
-//Funkcje obsługujące przerwania lewego silnika, w przyszłości mają znaleźć się w strukturze Motor
-void left_motor_interrupt()
-{
-  left_motor.interrupt();
-}
-
-//Funkcje obsługujące przerwania prawego silnika, w przyszłości mają znaleźć się w strukturze Motor
-void right_motor_interrupt()
-{
-  right_motor.interrupt();
-}
-
-//Utworzenie struktur dla obydwu silników
-void init_motors()
-{
-  //left_motor =
-  //right_motor = 
-}
-
-//Przypisanie funkcji obsługującej przerwania z enkoderów
-void attach_interrupts()
-{
-  attachInterrupt(digitalPinToInterrupt(left_motor.encoder_pin_1), left_motor_interrupt, RISING);
-  attachInterrupt(digitalPinToInterrupt(right_motor.encoder_pin_1), right_motor_interrupt, RISING);
-}
-
-
-
+//================================================================================
+//                          SETUP PROGRAMU
+//================================================================================
 void setup()
 {
   Serial.begin(115200);
-  set_pin_modes();
-  init_motors();
-  attach_interrupts();
+  attach_motors_interrupts();
   MyOled::setup_oled();
 }
 
-void set_pin_modes()
+//Przypisanie funkcji obsługującej przerwania z enkoderów
+void attach_motors_interrupts()
 {
-  pinMode(bluetooth_state, INPUT);
-  analogWrite(enA, 0);
-  analogWrite(enB, 0);
+  attachInterrupt(digitalPinToInterrupt(left_motor.enc_pin), left_motor_interrupt, RISING);
+  attachInterrupt(digitalPinToInterrupt(right_motor.enc_pin), right_motor_interrupt, RISING);
 }
 
+void left_motor_interrupt()
+{
+  MyOled::display_char('t', true, "Test lewy interrupt");
+  left_motor.interrupt();
+}
 
+void right_motor_interrupt()
+{
+  MyOled::display_char('p', true, "Test prawy interrupt");
+  right_motor.interrupt();
+}
+
+//================================================================================
+//                          GLOWNA PETLA PROGRAMU
+//================================================================================
 void loop()
 {
   if (Serial.available() >= 4)
   {
     load_received_data();
-    // Do sterowania nalezy korzystac ze zmiennych:
-    // control - znak sterowania
-    // read_value - wartosc odczytana, moze byc 0
-    boolean listed = true;
+    boolean command_available = true;
     String extra_info = " " + String(read_value);
 
+    // Do sterowania nalezy korzystac ze zmiennych 'control' oraz 'read_value'
     switch (control)
     {
     case 'm':
@@ -111,33 +96,44 @@ void loop()
       break;
     case 'r':
       rotate(read_value);
-      wants_to_be_printed = false;
       break;
     case 'v':
       velocity(read_value);
       break;
-    case 's': // stop motors
-      MyMotors::stop_motors();
+    case 's':
+      left_motor.stop();
+      right_motor.stop();
+      break;
+    case 'f':
+      left_motor.fast_stop();
+      right_motor.fast_stop();
       break;
     default:
-      listed = false;
+      command_available = false;
       break;
     }
-    if (wants_to_be_printed)
+    if (oled_info_debug_print)
     {
-      MyOled::display_char(control, listed, extra_info);
+      MyOled::display_char(control, command_available, extra_info);
     }
   }
 }
 
-void move_robot(int cm, bool forward)
-{ //Move robot for the delared distance, measured in encoder readings
+//================================================================================
+//                          FUNKCJE STERUJĄCE
+//================================================================================
 
+// FIX ME
+//Move robot for the declared distance, measured in encoder readings
+void move_robot(int cm, bool forward)
+{
   double click_to_cm_ratio = 0.6; // dystans w cm przejechany przy jednym obrocie kolka
   double a_cm = 0;
   double b_cm = 0;
-  a_rotation_counter = 0; // wyzerowanie licznika obrotow dla silnika A
-  b_rotation_counter = 0; // wyzerowanie licznika obrotow dla silnika B
+  left_motor.reset_encoder_counter();  // wyzerowanie licznika obrotow dla silnika lewego
+  right_motor.reset_encoder_counter(); // wyzerowanie licznika obrotow dla silnika prawego
+
+  // ustawienie kierunku jazdy
   if (forward)
   {
     left_motor.forward();
@@ -149,18 +145,6 @@ void move_robot(int cm, bool forward)
     right_motor.backward();
   }
 
-  left_motor.pwm(target_velocity);
-  right_motor.pwm(target_velocity);
-
-  // propocja 255 -> 100 = 155 to jest zjazd
-  double propotion = 1.51;  
-
-  // calka - stala wartosc przez ktora mnozy sie sume
-  double integral = 0.01;   
-
-  // pochodona - stala wartosc przez ktora mnozy sie roznice
-  double derivative = 1.51; 
-
   double a_sum = 0;             // for integral part
   double a_previous_error = cm; // for derivative part
   unsigned long a_prev_millis = millis();
@@ -168,22 +152,26 @@ void move_robot(int cm, bool forward)
   double b_sum = 0;             // for integral part
   double b_previous_error = cm; // for derivative part
 
+  // softstart
   for (int i = 0; i < 200; i += 1)
   {
     left_motor.pwm(i);
     right_motor.pwm(i);
-    delay(1);
+    delay(1); // BLOKUJACE!!!
   }
 
   while (true)
   {
     MyOled::write_oled_rotation_count(a_cm, b_cm, cm);
 
-    a_cm = a_rotation_counter * click_to_cm_ratio;
-    b_cm = b_rotation_counter * click_to_cm_ratio;
+    a_cm = left_motor.encoder_counter * click_to_cm_ratio;
+    b_cm = right_motor.encoder_counter * click_to_cm_ratio;
 
-    int pwm_a = pid_control(cm, a_cm, propotion, integral, derivative, &a_sum, &a_previous_error, &a_prev_millis); //FIXME
-    int pwm_b = pid_control(cm, b_cm, propotion, integral, derivative, &b_sum, &b_previous_error, &a_prev_millis); //FIXME
+    //FIXME
+    int pwm_a = pid_control(cm, a_cm, PID_P_MOVE, PID_I_MOVE, PID_D_MOVE, &a_sum, &a_previous_error, &a_prev_millis);
+    //FIXME
+    int pwm_b = pid_control(cm, b_cm, PID_P_MOVE, PID_I_MOVE, PID_D_MOVE, &b_sum, &b_previous_error, &a_prev_millis);
+
     if (pwm_a < 25 || pwm_b < 25)
     {
       break;
@@ -191,12 +179,12 @@ void move_robot(int cm, bool forward)
     left_motor.pwm(pwm_a);
     right_motor.pwm(pwm_b);
   }
-  MyMotors::stop_motors();
+  left_motor.stop();
+  right_motor.stop();
   MyOled::print_oled_welcome_prompt();
 }
 
-// PID
-// Returns: PWM
+// PID zwracający PWM
 int pid_control(double cm_total, double cm_driven, double propotion, double integral, double derivative, double *sum, double *previous_error, unsigned long *prev_mils)
 {
   double error = cm_total - cm_driven; // cm to end
@@ -205,20 +193,21 @@ int pid_control(double cm_total, double cm_driven, double propotion, double inte
   *previous_error = error;
   *sum += error;
   int pwm = (propotion * error) + (integral * (*sum)) + (derivative * delta);
-  Serial.println("Error\t" + String(int(error)) + "\t Delta:\t" + String(delta) + " Prev err\t" + String(*previous_error) + " Sum\t" + String(*sum) + " PWM \t" + String(pwm));
-  //int pwm = (100+propotion*error);
+  Serial.println("PID Error\t" + String(int(error)) + "\t Delta:\t" + String(delta) + " Prev err\t" + String(*previous_error) + " Sum\t" + String(*sum) + " PWM \t" + String(pwm));
   if (pwm > 255)
   {
     pwm = 255;
   }
   *prev_mils = millis();
-
   return pwm;
 }
 
-void rotate(int value) //TODO
+//TODO
+void rotate(int value)
 {
-  a_rotation_counter = b_rotation_counter = 0;
+  left_motor.reset_encoder_counter();
+  right_motor.reset_encoder_counter();
+
   double desired = 320;
   int to_write_a = 0;
   int to_write_b = 0;
@@ -227,49 +216,49 @@ void rotate(int value) //TODO
   char offset = 50;
   if ((value > 0) && (value <= desired))
   {
-    MyMotors::b_forward();
-    MyMotors::a_backward();
+    left_motor.backward();
+    right_motor.forward();
     to_write_b = int((((double)(desired - value) / desired) * max_pwm_value)) + offset;
-    analogWrite(enB, to_write_b);
-    analogWrite(enA, 0);
+    right_motor.pwm(to_write_b);
+    left_motor.pwm(0);
   }
   else if ((value > desired) && (value <= desired * 2))
   {
-    MyMotors::a_forward();
-    MyMotors::b_backward();
+    left_motor.forward();
+    right_motor.backward();
     value = value - desired;
     to_write_a = int((((double)(value) / desired) * max_pwm_value)) + offset;
-    analogWrite(enA, to_write_a);
-    analogWrite(enB, 0);
+    right_motor.pwm(0);
+    left_motor.pwm(to_write_a);
   }
   else
   {
-    MyMotors::a_fast_stop();
-    MyMotors::b_fast_stop();
+    left_motor.fast_stop();
+    right_motor.fast_stop();
   }
   MyOled::print_oled_rotation_input(my_value, to_write_a, to_write_b);
 }
 
-const double p = -22;     // propocja 255 -> 100 = 155 to jest zjazd
-const double i = -0.0149; // calka - stala wartosc przez ktora mnozy sie sume
-const double d = -19;     // pochodona - stala wartosc przez ktora mnozy sie roznice
-const short dt_increase_rate = 100;
-
-void velocity(int value_pwm) {
+// Zmienia zmienna ktora jest wykorzystywana do ustawiania predkosci silnikow
+void velocity(int value_pwm)
+{
   target_velocity = value_pwm;
 }
 
+//????????????????????????????
 void drive(int cm, bool direction)
 {
-  if(direction) {
+  if (direction)
+  {
     left_motor.forward();
     right_motor.forward();
-  } else {
+  }
+  else
+  {
     left_motor.backward();
     right_motor.backward();
   }
 
-  //TODO  resetownaie liczników pwmów
   left_motor.reset_encoder_counter();
   right_motor.reset_encoder_counter();
 
@@ -278,13 +267,13 @@ void drive(int cm, bool direction)
   unsigned long sofstart_offset = millis();
   int x = 30;
 
-  //SOFTstart loop
+  //softstart
   while (x <= target_velocity)
   {
     if ((millis() - sofstart_offset) % 100 == 0)
     {
       left_motor.pwm(x);
-      right_motor.pwm(x - start_value);
+      right_motor.pwm(x - start_value); // prawy silnik jezdzi szybciej przy tym samym napieciu co lewy
       x++;
     }
   }
@@ -303,37 +292,33 @@ void drive(int cm, bool direction)
   double b_previous_rotation = 0;
   int first_dt = (millis() - sofstart_offset) / 100;
   double a_vel_calibration = 0.9; //aby uniknąć skrętu w lewo na początku
-  double a_vel = (a_rotation_counter * (interval / dt_increase_rate)) * a_vel_calibration / (double)first_dt;
+  double a_vel = (left_motor.encoder_counter * (interval / DT_INCREASE_RATE)) * a_vel_calibration / (double)first_dt;
   double b_vel = 0;
   unsigned long offset = millis();
   unsigned int dt;
   unsigned int prev_dt = 0;
   unsigned long current_millis;
 
-  // === zmienna przochowujaca wartosc wyliczona w PIDzie
+  // Zmienna przechowujaca wartosc wyliczona w PIDzie
   int pwn_b = 0;
 
-  // === wyzerowanie wartosci licznikow rotacji enkoderow dzialajacych na przerwaniach
-  a_rotation_counter = 0;
-  b_rotation_counter = 0;
+  // Wyzerowanie wartosci licznikow rotacji enkoderow dzialajacych na przerwaniach
+  left_motor.encoder_counter = 0;
+  right_motor.encoder_counter = 0;
   boolean first_vel = true;
-
-  // === stworzenie zmiennej pomocniczej w celu pomiarow inlosci bledow
-  short infrared_counter = 0;
-  short infrared_distance = 80;
 
   while (true)
   {
     dt = millis() - offset;
-    // === obliczanie predkosci obydwu silnikow co okreslony interwal
+    // Obliczanie predkosci obydwu silnikow co okreslony interwal
     if (check_interval(dt, prev_dt, interval))
     {
       if (!first_vel)
       {
         prev_dt = dt;
         current_millis = millis();
-        a_vel = measure_velocity(&a_previous_rotation, a_rotation_counter, current_millis, &a_prev_millis);
-        b_vel = measure_velocity(&b_previous_rotation, b_rotation_counter, current_millis, &b_prev_millis);
+        a_vel = measure_velocity(&a_previous_rotation, left_motor.encoder_counter, current_millis, &a_prev_millis);
+        b_vel = measure_velocity(&b_previous_rotation, right_motor.encoder_counter, current_millis, &b_prev_millis);
         //Serial.println(pwn_b);
       }
       else
@@ -343,7 +328,7 @@ void drive(int cm, bool direction)
       }
     }
 
-    // === pierwsze wywolanie PIDa, ustawienie odpowiednich bledow
+    // Pierwsze wywolanie PIDa, ustawienie odpowiednich bledow
     if (first_delta_error)
     {
       a_previous_error = a_vel - b_vel;
@@ -351,21 +336,24 @@ void drive(int cm, bool direction)
       first_delta_error = false;
     }
 
-    // === ustawienie wartosci PWM silnika B na podstawie obliczen z PIDa
-    pwn_b = pid_control_velocity(a_vel, &b_vel, p, i, d, &b_sum, &b_previous_error);
-    analog_write_motors(enB, pwn_b);
-    if(true);
+    // Ustawienie wartosci PWM silnika B na podstawie obliczen z PIDa
+    pwn_b = pid_control_velocity(a_vel, &b_vel, PID_P_DRIVE, PID_I_DRIVE, PID_D_DRIVE, &b_sum, &b_previous_error);
+    right_motor.pwm(pwn_b);
   }
 
-  // === zahamowanie dwoma silnikami
-  left_motor.fstop();
-  right_motor.fstop();
+  // Zahamowanie obydwoma silnikami
+  left_motor.stop();
+  right_motor.stop();
 }
-bool distance_reached(int cm) {
-  return (cm>=calculate_distance());
+
+bool distance_reached(int cm)
+{
+  return (cm >= calculate_distance());
 }
-float calculate_distance() {
-  //TODO zwróć odległość na podstawie śrenidej enkoderów
+
+float calculate_distance()
+{
+  //TODO zwróć odległość na podstawie średniej enkoderów
   return 0;
 }
 
@@ -374,25 +362,23 @@ bool check_interval(unsigned int dt, unsigned int prev_dt, int interval)
   return (dt % interval == 0) && (dt != prev_dt) && (dt > 0);
 }
 
-//  CHECKED - do obliczania błędu
+// Mierzy predkosc na podstawie przyrostu licznika rotacji w czasie | przetestowane - dziala
 double measure_velocity(double *previous_rotation, double current_rotation, unsigned long current_millis, unsigned long *previous_millis)
 {
-  double dt = (current_millis - *previous_millis) / dt_increase_rate;
+  double dt = (current_millis - *previous_millis) / DT_INCREASE_RATE;
   double velocity = (current_rotation - *previous_rotation) / dt;
   *previous_rotation = current_rotation;
   *previous_millis = current_millis;
   return velocity;
 }
-// INPUT : dane velocity
-// ERROR
-// OUTPUT: PWM
-double pid_control_velocity(double other_velocity, double *my_vel,
-                            double p, double i, double d, double *sum, double *previous_error)
-{
 
-  //  unsigned long mil = millis();
-  double error = *my_vel - other_velocity; //Rożnica silnika na którym działa PID i drugiego silnika || rzedu max 1.2, ok. 0.8
-  double delta = error - *previous_error;  // b male, jakies 0.1
+// INPUT : Predkosc drugiego silnika
+// OUTPUT: PWM
+double pid_control_velocity(double other_velocity, double *my_vel, double p, double i, double d, double *sum, double *previous_error)
+{
+  //Rożnica silnika na którym działa PID i drugiego silnika || rzedu max 1.2, ok. 0.8
+  double error = *my_vel - other_velocity;
+  double delta = error - *previous_error; // bardzo male, jakies 0.1
   *sum += error;
 
   *previous_error = error;
@@ -400,7 +386,7 @@ double pid_control_velocity(double other_velocity, double *my_vel,
   float pid_output_pwm = (p * error) + (i * *sum) + (d * delta);
 
   if (pid_output_pwm > 255)
-  { //pwm z akceptowanym zakresie
+  {
     pid_output_pwm = 255;
   }
   else if (pid_output_pwm < 0)
@@ -410,61 +396,38 @@ double pid_control_velocity(double other_velocity, double *my_vel,
   return int(pid_output_pwm);
 }
 
-//Handling interrupts
-void encoder_a_interrupt_handler()
-{
-  unsigned long interrupt_time = millis();
-  if (interrupt_time - last_time_a > 1)
-  {
-    a_rotation_counter++;
-  }
-  last_time_a = interrupt_time;
-}
+/*==============================================================================
+                            PROTOKOL KOMUNIKACJI
+  ==============================================================================
 
-void encoder_b_interrupt_handler()
-{
-  unsigned long interrupt_time = millis();
-  if (interrupt_time - last_time_b > 1)
-  {
-    b_rotation_counter++;
-  }
-  last_time_b = interrupt_time;
-}
-
-//TODO delete this useless fun
-void analog_write_motors(int analog_pin, int analog_val)
-{
-  analogWrite(analog_pin, analog_val);
-}
-
-
-// ======= funkcje czytania z portu szeregowego
-// ----- Dzialanie protokolu ------
-// postac flagi: znak + trzy cyfry, no. f259, b000
-// protokol umozliwia wysylanie dowolnej wartosci
-// o maksymalnej liczbie cyfr rĂ„â€šÄąâ€šwnej 3 oraz znak
-// oznaczajacy akcje wykonywana przez robota
-// Przyklad: jezeli chcesz wyslac flage ze znakiem r o wartosci 90
-// flaga wyslana przez port szeregowy powinna miec postac: r090
-// ----- Zmienne -----
-// bytes_read - tablica 4 bajtow do ktorej sa pakowane dane z portu szeregowego
-// control - znak sterujacy robotem, odpowiednio: m,r,b,c,v,s,o
-// read_value - integer, wartosc odczytana z portu szeregowego
+   --- Działanie protokołu:
+   postac flagi: znak + trzy cyfry, no. f259, b000
+   protokol umozliwia wysylanie dowolnej wartosci
+   o maksymalnej liczbie cyfr rownej 3 oraz znak
+   oznaczajacy akcje wykonywana przez robota
+   Przyklad: jezeli chcesz wyslac flage ze znakiem r o wartosci 90
+   flaga wyslana przez port szeregowy powinna miec postac: r090
+   --- Zmienne:
+   bytes_read - tablica 4 bajtow do ktorej sa pakowane dane z portu szeregowego
+   control - char, znak sterujacy robotem
+   read_value - integer, wartosc odczytana z portu szeregowego
+*/
 void load_received_data()
-{                                  // odczytuje 4 bajty i przypisuje je do zmiennych
-  Serial.readBytes(bytes_read, 4); // zaladowanie bajtow do bytes_read
-
+{
+  // odczytuje 4 bajty i laduje je do tablicy bytes_read
+  Serial.readBytes(bytes_read, 4);
   Serial.flush();
-  control = bytes_read[0]; // znak kierunku
-  load_speed_value();      // zaladowanie do inta wartosci przyspieszenia
-  //display_data(bytes_read[0],bytes_read[1],bytes_read[2],bytes_read[3]);
+  control = bytes_read[0];
+
+  load_value();
 }
 
-void load_speed_value()
+// Zaladowanie do inta tablicy z liczba
+void load_value()
 {
-  read_value_chars[0] = bytes_read[1];         // pierwsza cyfra liczby przyspieszenia
-  read_value_chars[1] = bytes_read[2];         // druga cyfra liczby przyspieszenia
-  read_value_chars[2] = bytes_read[3];         // trzecia cyfra liczby przyspieszenia
-  read_value_chars[3] = '\0';                  // dodanie na koncu znaku konca ciagu zeby zrzutowac ladnie na inta
-  sscanf(read_value_chars, "%d", &read_value); // czyta tablice znakow intow do zmiennej int korzystajac z adresu
+  read_value_chars[0] = bytes_read[1];         // pierwsza cyfra
+  read_value_chars[1] = bytes_read[2];         // druga cyfra
+  read_value_chars[2] = bytes_read[3];         // trzecia cyfra
+  read_value_chars[3] = '\0';                  // dodanie na koncu znaku konca ciagu zeby zrzutowac na inta
+  sscanf(read_value_chars, "%d", &read_value); // czyta tablice znakow inta do zmiennej int korzystajac z adresu
 }

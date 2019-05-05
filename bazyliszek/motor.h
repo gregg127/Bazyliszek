@@ -1,21 +1,21 @@
-#include "motors.h"
 #include <Arduino.h>
+
 struct Motor
 {
     //Numer wejścia/wyjścia mikrokontrolera sterującego polaryzacją
-    char direction_pin_1;
+    char dir_pin_1;
 
     //Numer wejścia/wyjścia mikrokontrolera sterującego polaryzacją
-    char direction_pin_2;
+    char dir_pin_2;
 
     //Numer wejścia/wyjścia mikrokontrolera sterującego wypełnieniem PWM
     char pwm_pin;
 
     //Numer wejścia/wyjścia mikrokontrolera do odczytu wartości enkodera silnika
-    char encoder_pin_1;
+    char enc_pin;
 
     //Licznik zmian stanu enkodera
-    int encoder_counter;
+    long encoder_counter;
 
     //Czas ostatniej zmiany enkodera
     unsigned long encoder_timestamp;
@@ -30,18 +30,17 @@ struct Motor
     void backward();
 
     //Szybkie zatrzymanie
-    void fstop();
+    void fast_stop();
 
-    //zatrzymanie
+    //Zatrzymanie
     void stop();
 
     //Ustawienie mocy
-    void pwm(unsigned char);
+    void pwm(unsigned char pwm);
 
     //Obsłużenie przerwania
     void interrupt();
 
     //Wyzerowanie licznika obrotów
     void reset_encoder_counter();
-
 };
