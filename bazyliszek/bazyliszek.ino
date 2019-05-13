@@ -3,9 +3,6 @@
 #include <Wire.h>
 #include <Arduino.h>
 
-// #include "myoled.h"
-// #include "motor.h"
-
 //==============================================================================
 //                          KONFIGURACJA (STAŁE)
 //==============================================================================
@@ -108,7 +105,6 @@ struct Motor
       encoder_counter++;
     }
     encoder_timestamp = interrupt_time;
-
   }
 
   //Wyzerowanie licznika obrotów
@@ -140,7 +136,7 @@ boolean oled_info_debug_print = true;
 //================================================================================
 void setup()
 {
-  Serial.begin(115200);
+  Serial1.begin(115200);
   attach_motors_interrupts();
   //MyOled::setup_oled();
 }
@@ -152,18 +148,16 @@ void attach_motors_interrupts()
   attachInterrupt(right_motor.enc_pin, right_motor_interrupt, RISING);
 }
 
-void left_motor_interrupt()   
+void left_motor_interrupt()
 {
   //MyOled::display_char('t', true, "Test lewy interrupt");
   left_motor.interrupt();
-  Serial.println(left_motor.encoder_counter);
 }
 
 void right_motor_interrupt()
 {
   //MyOled::display_char('p', true, "Test prawy interrupt");
   right_motor.interrupt();
-  Serial.println(right_motor.encoder_counter);
 }
 
 //================================================================================
@@ -171,8 +165,7 @@ void right_motor_interrupt()
 //================================================================================
 void loop()
 {
-  //Serial.println("hej");
-  if (Serial.available() >= 4)
+  if (Serial1.available() >= 4)
   {
     load_received_data();
     boolean command_available = true;
@@ -181,37 +174,36 @@ void loop()
     // Do sterowania nalezy korzystac ze zmiennych 'control' oraz 'read_value'
     switch (control)
     {
-      case 'm':
-        move_robot(read_value, true);
-        break;
-      case 'b':
-        move_robot(read_value, false);
-        break;
-      case 'r':
-        rotate(read_value);
-        break;
-      case 'v':
-        velocity(read_value);
-        break;
-      case 's':
-        left_motor.stop();
-        right_motor.stop();
-        break;
-      case 'f':
-        left_motor.fast_stop();
-        right_motor.fast_stop();
-        break;
-      default:
-        command_available = false;
-        break;
+    case 'm':
+      move_robot(read_value, true);
+      break;
+    case 'b':
+      move_robot(read_value, false);
+      break;
+    case 'r':
+      rotate(read_value);
+      break;
+    case 'v':
+      velocity(read_value);
+      break;
+    case 's':
+      left_motor.stop();
+      right_motor.stop();
+      break;
+    case 'f':
+      left_motor.fast_stop();
+      right_motor.fast_stop();
+      break;
+    default:
+      command_available = false;
+      break;
     }
     if (oled_info_debug_print)
     {
       //MyOled::display_char(control, command_available, extra_info);
-      Serial.println(extra_info);
-      Serial.println(left_motor.enc_pin);
-      Serial.println(right_motor.enc_pin);
-      
+      Serial1.println(extra_info);
+      Serial1.println(left_motor.enc_pin);
+      Serial1.println(right_motor.enc_pin);
     }
   }
 }
@@ -290,7 +282,7 @@ int pid_control(double cm_total, double cm_driven, double propotion, double inte
   *previous_error = error;
   *sum += error;
   int pwm = (propotion * error) + (integral * (*sum)) + (derivative * delta);
-  Serial.println("PID Error\t" + String(int(error)) + "\t Delta:\t" + String(delta) + " Prev err\t" + String(*previous_error) + " Sum\t" + String(*sum) + " PWM \t" + String(pwm));
+  Serial1.println("PID Error\t" + String(int(error)) + "\t Delta:\t" + String(delta) + " Prev err\t" + String(*previous_error) + " Sum\t" + String(*sum) + " PWM \t" + String(pwm));
   if (pwm > 255)
   {
     pwm = 255;
@@ -416,11 +408,11 @@ void drive(int cm, bool direction)
         current_millis = millis();
         a_vel = measure_velocity(&a_previous_rotation, left_motor.encoder_counter, current_millis, &a_prev_millis);
         b_vel = measure_velocity(&b_previous_rotation, right_motor.encoder_counter, current_millis, &b_prev_millis);
-        //Serial.println(pwn_b);
+        //Serial1.println(pwn_b);
       }
       else
       {
-        //Serial.println("[FIRST VEL CHECK OMMITTED]");
+        //Serial1.println("[FIRST VEL CHECK OMMITTED]");
         first_vel = false;
       }
     }
@@ -512,8 +504,8 @@ double pid_control_velocity(double other_velocity, double *my_vel, double p, dou
 void load_received_data()
 {
   // odczytuje 4 bajty i laduje je do tablicy bytes_read
-  Serial.readBytes(bytes_read, 4);
-  Serial.flush();
+  Serial1.readBytes(bytes_read, 4);
+  Serial1.flush();
   control = bytes_read[0];
 
   load_value();
