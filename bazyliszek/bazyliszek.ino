@@ -1,13 +1,15 @@
 #include <math.h>
 #include <SPI.h>
 #include <Wire.h>
+#include <Arduino.h>
 
-#include "myoled.h"
-#include "motor.h"
+// #include "myoled.h"
+// #include "motor.h"
 
 //==============================================================================
 //                          KONFIGURACJA (STAŁE)
 //==============================================================================
+
 #define MOTOR_LEFT_DIR_1 7
 #define MOTOR_LEFT_DIR_2 5
 #define MOTOR_LEFT_PWM 6
@@ -27,6 +29,98 @@
 #define PID_D_DRIVE -19      // pochodna - stala wartosc przez ktora mnozy sie roznice
 #define DT_INCREASE_RATE 100 // funkja drive
 
+//================================================================================
+//                          MOTOR STRUKTURA
+//================================================================================
+
+struct Motor
+{
+  //Numer wejścia/wyjścia mikrokontrolera sterującego polaryzacją
+  int dir_pin_1;
+  //Numer wejścia/wyjścia mikrokontrolera sterującego polaryzacją
+  int dir_pin_2;
+  //Numer wejścia/wyjścia mikrokontrolera sterującego wypełnieniem PWM
+  int pwm_pin;
+  //Numer wejścia/wyjścia mikrokontrolera do odczytu wartości enkodera silnika
+  int enc_pin;
+  //Licznik zmian stanu enkodera
+  long encoder_counter;
+  //Czas ostatniej zmiany enkodera
+  unsigned long encoder_timestamp;
+
+  //Konstruktor z ustawieniem wejść/wyjść dla silnika
+  Motor(int _dir_pin_1, int _dir_pin_2, int _pwm_pin, int _enc_pin)
+  {
+    dir_pin_1 = _dir_pin_1;
+    dir_pin_2 = _dir_pin_2;
+    pwm_pin = _pwm_pin;
+    enc_pin = _enc_pin;
+
+    pinMode(dir_pin_1, OUTPUT);
+    pinMode(dir_pin_2, OUTPUT);
+    pinMode(pwm_pin, OUTPUT);
+    pinMode(enc_pin, INPUT);
+
+    encoder_counter = 0L;
+    encoder_timestamp = millis();
+    
+    Serial.print("Konstruktor");
+  }
+
+  //Tryb jazdy do przodu
+  void forward()
+  {
+    digitalWrite(dir_pin_1, HIGH);
+    digitalWrite(dir_pin_2, LOW);
+  }
+
+  //Tryb jazdy do tyłu
+  void backward()
+  {
+    digitalWrite(dir_pin_1, LOW);
+    digitalWrite(dir_pin_2, HIGH);
+  }
+
+  //Szybkie zatrzymanie
+  void fast_stop()
+  {
+    analogWrite(pwm_pin, 255); // ???
+    digitalWrite(dir_pin_1, LOW);
+    digitalWrite(dir_pin_2, LOW);
+  }
+
+  //Zatrzymanie
+  void stop()
+  {
+    analogWrite(pwm_pin, 0);
+  }
+
+  //Ustawienie mocy
+  void pwm(unsigned char pwm)
+  {
+    analogWrite(pwm_pin, pwm);
+  }
+
+  //Obsłużenie przerwania
+  void interrupt()
+  {
+    unsigned long interrupt_time = millis();
+    if (interrupt_time - encoder_timestamp > 1)
+    {
+      encoder_counter++;
+    }
+    encoder_timestamp = interrupt_time;
+
+    Serial.print("Test enkoderu, liczba przerwan: ");
+    Serial.println(encoder_counter);
+  }
+
+  //Wyzerowanie licznika obrotów
+  void reset_encoder_counter()
+  {
+    encoder_counter = 0L;
+  }
+};
 //================================================================================
 //                          ZMIENNE GLOBALNE
 //================================================================================
@@ -52,7 +146,7 @@ void setup()
 {
   Serial.begin(115200);
   attach_motors_interrupts();
-  MyOled::setup_oled();
+  //MyOled::setup_oled();
 }
 
 //Przypisanie funkcji obsługującej przerwania z enkoderów
@@ -64,13 +158,15 @@ void attach_motors_interrupts()
 
 void left_motor_interrupt()
 {
-  MyOled::display_char('t', true, "Test lewy interrupt");
+  //MyOled::display_char('t', true, "Test lewy interrupt");
+  Serial.println("LEWY");
   left_motor.interrupt();
 }
 
 void right_motor_interrupt()
 {
-  MyOled::display_char('p', true, "Test prawy interrupt");
+  //MyOled::display_char('p', true, "Test prawy interrupt");
+  Serial.println("prawy");
   right_motor.interrupt();
 }
 
@@ -88,33 +184,37 @@ void loop()
     // Do sterowania nalezy korzystac ze zmiennych 'control' oraz 'read_value'
     switch (control)
     {
-    case 'm':
-      move_robot(read_value, true);
-      break;
-    case 'b':
-      move_robot(read_value, false);
-      break;
-    case 'r':
-      rotate(read_value);
-      break;
-    case 'v':
-      velocity(read_value);
-      break;
-    case 's':
-      left_motor.stop();
-      right_motor.stop();
-      break;
-    case 'f':
-      left_motor.fast_stop();
-      right_motor.fast_stop();
-      break;
-    default:
-      command_available = false;
-      break;
+      case 'm':
+        move_robot(read_value, true);
+        break;
+      case 'b':
+        move_robot(read_value, false);
+        break;
+      case 'r':
+        rotate(read_value);
+        break;
+      case 'v':
+        velocity(read_value);
+        break;
+      case 's':
+        left_motor.stop();
+        right_motor.stop();
+        break;
+      case 'f':
+        left_motor.fast_stop();
+        right_motor.fast_stop();
+        break;
+      default:
+        command_available = false;
+        break;
     }
     if (oled_info_debug_print)
     {
-      MyOled::display_char(control, command_available, extra_info);
+      //MyOled::display_char(control, command_available, extra_info);
+      Serial.println(extra_info);
+      Serial.println(left_motor.enc_pin);
+      Serial.println(right_motor.enc_pin);
+      
     }
   }
 }
@@ -162,7 +262,7 @@ void move_robot(int cm, bool forward)
 
   while (true)
   {
-    MyOled::write_oled_rotation_count(a_cm, b_cm, cm);
+    //MyOled::write_oled_rotation_count(a_cm, b_cm, cm);
 
     a_cm = left_motor.encoder_counter * click_to_cm_ratio;
     b_cm = right_motor.encoder_counter * click_to_cm_ratio;
@@ -181,7 +281,7 @@ void move_robot(int cm, bool forward)
   }
   left_motor.stop();
   right_motor.stop();
-  MyOled::print_oled_welcome_prompt();
+  //MyOled::print_oled_welcome_prompt();
 }
 
 // PID zwracający PWM
@@ -236,7 +336,7 @@ void rotate(int value)
     left_motor.fast_stop();
     right_motor.fast_stop();
   }
-  MyOled::print_oled_rotation_input(my_value, to_write_a, to_write_b);
+  //MyOled::print_oled_rotation_input(my_value, to_write_a, to_write_b);
 }
 
 // Zmienia zmienna ktora jest wykorzystywana do ustawiania predkosci silnikow
