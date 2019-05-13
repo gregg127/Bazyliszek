@@ -44,7 +44,7 @@ struct Motor
   //Numer wejścia/wyjścia mikrokontrolera do odczytu wartości enkodera silnika
   int enc_pin;
   //Licznik zmian stanu enkodera
-  long encoder_counter;
+  unsigned long encoder_counter;
   //Czas ostatniej zmiany enkodera
   unsigned long encoder_timestamp;
 
@@ -63,8 +63,6 @@ struct Motor
 
     encoder_counter = 0L;
     encoder_timestamp = millis();
-    
-    Serial.print("Konstruktor");
   }
 
   //Tryb jazdy do przodu
@@ -111,8 +109,6 @@ struct Motor
     }
     encoder_timestamp = interrupt_time;
 
-    Serial.print("Test enkoderu, liczba przerwan: ");
-    Serial.println(encoder_counter);
   }
 
   //Wyzerowanie licznika obrotów
@@ -152,22 +148,22 @@ void setup()
 //Przypisanie funkcji obsługującej przerwania z enkoderów
 void attach_motors_interrupts()
 {
-  attachInterrupt(digitalPinToInterrupt(left_motor.enc_pin), left_motor_interrupt, RISING);
-  attachInterrupt(digitalPinToInterrupt(right_motor.enc_pin), right_motor_interrupt, RISING);
+  attachInterrupt(left_motor.enc_pin, left_motor_interrupt, RISING);
+  attachInterrupt(right_motor.enc_pin, right_motor_interrupt, RISING);
 }
 
-void left_motor_interrupt()
+void left_motor_interrupt()   
 {
   //MyOled::display_char('t', true, "Test lewy interrupt");
-  Serial.println("LEWY");
   left_motor.interrupt();
+  Serial.println(left_motor.encoder_counter);
 }
 
 void right_motor_interrupt()
 {
   //MyOled::display_char('p', true, "Test prawy interrupt");
-  Serial.println("prawy");
   right_motor.interrupt();
+  Serial.println(right_motor.encoder_counter);
 }
 
 //================================================================================
@@ -175,6 +171,7 @@ void right_motor_interrupt()
 //================================================================================
 void loop()
 {
+  //Serial.println("hej");
   if (Serial.available() >= 4)
   {
     load_received_data();
