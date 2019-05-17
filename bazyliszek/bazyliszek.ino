@@ -7,13 +7,15 @@
 //                          KONFIGURACJA (STAŁE)
 //==============================================================================
 
+#define INPUT_SIZE 2
+
 #define MOTOR_LEFT_DIR_1 8
 #define MOTOR_LEFT_DIR_2 7
 #define MOTOR_LEFT_PWM 10
 #define MOTOR_LEFT_ENC 2
 
-#define MOTOR_RIGHT_DIR_1 12
-#define MOTOR_RIGHT_DIR_2 13
+#define MOTOR_RIGHT_DIR_1 13
+#define MOTOR_RIGHT_DIR_2 12
 #define MOTOR_RIGHT_PWM 11
 #define MOTOR_RIGHT_ENC 3
 
@@ -107,7 +109,7 @@ struct Motor
     encoder_timestamp = interrupt_time;
   }
 
-  //Wyzerowanie licznika obrotów
+  // Wyzerowanie licznika obrotów
   void reset_encoder_counter()
   {
     encoder_counter = 0L;
@@ -116,8 +118,8 @@ struct Motor
 //================================================================================
 //                          ZMIENNE GLOBALNE
 //================================================================================
+Motor right_motor = Motor(MOTOR_RIGHT_DIR_1, MOTOR_RIGHT_DIR_2, MOTOR_RIGHT_PWM, MOTOR_RIGHT_ENC);
 Motor left_motor = Motor(MOTOR_LEFT_DIR_1, MOTOR_LEFT_DIR_2, MOTOR_LEFT_PWM, MOTOR_LEFT_ENC);
-Motor right_motor = Motor(MOTOR_RIGHT_DIR_1, MOTOR_RIGHT_DIR_2, MOTOR_LEFT_PWM, MOTOR_RIGHT_ENC);
 
 // Prędkość ustawiana w funkcji velocity, definuje jaki pwm ma być podawany na silniki w funkcji move
 unsigned char target_velocity;
@@ -164,11 +166,21 @@ void right_motor_interrupt()
 //================================================================================
 //                          GLOWNA PETLA PROGRAMU
 //================================================================================
-void loop()
+void test()
 {
+  if(Serial1.available()){
+    Serial.println(Serial1.readString());
+  }
+}
+void loop() {
   if (Serial1.available() >= 4)
   {
     load_received_data();
+    Serial.print("Flag: ");
+    Serial.print(control);
+    Serial.print(" , value: ");
+    Serial.print(read_value);
+    Serial.println();
     boolean command_available = true;
     String extra_info = " " + String(read_value);
 
@@ -199,13 +211,6 @@ void loop()
       command_available = false;
       break;
     }
-    if (oled_info_debug_print)
-    {
-      //MyOled::display_char(control, command_available, extra_info);
-      Serial1.println(extra_info);
-      Serial1.println(left_motor.enc_pin);
-      Serial1.println(right_motor.enc_pin);
-    }
   }
 }
 
@@ -214,7 +219,7 @@ void loop()
 //================================================================================
 
 // FIX ME
-//Move robot for the declared distance, measured in encoder readings
+// Move robot for the declared distance, measured in encoder readings
 void move_robot(int cm, bool forward)
 {
   double click_to_cm_ratio = 0.6; // dystans w cm przejechany przy jednym obrocie kolka
@@ -283,7 +288,7 @@ int pid_control(double cm_total, double cm_driven, double propotion, double inte
   *previous_error = error;
   *sum += error;
   int pwm = (propotion * error) + (integral * (*sum)) + (derivative * delta);
-  Serial1.println("PID Error\t" + String(int(error)) + "\t Delta:\t" + String(delta) + " Prev err\t" + String(*previous_error) + " Sum\t" + String(*sum) + " PWM \t" + String(pwm));
+  //Serial1.println("PID Error\t" + String(int(error)) + "\t Delta:\t" + String(delta) + " Prev err\t" + String(*previous_error) + " Sum\t" + String(*sum) + " PWM \t" + String(pwm));
   if (pwm > 255)
   {
     pwm = 255;
@@ -336,9 +341,9 @@ void velocity(int value_pwm)
   //PREZENTACJA
   left_motor.forward();
   right_motor.forward();
+
   left_motor.pwm(value_pwm);
   right_motor.pwm(value_pwm);
-  Serial.print(value_pwm);
   //PREZENTACJA
 }
 
@@ -416,11 +421,11 @@ void drive(int cm, bool direction)
         current_millis = millis();
         a_vel = measure_velocity(&a_previous_rotation, left_motor.encoder_counter, current_millis, &a_prev_millis);
         b_vel = measure_velocity(&b_previous_rotation, right_motor.encoder_counter, current_millis, &b_prev_millis);
-        //Serial1.println(pwn_b);
+        ////Serial1.println(pwn_b);
       }
       else
       {
-        //Serial1.println("[FIRST VEL CHECK OMMITTED]");
+        ////Serial1.println("[FIRST VEL CHECK OMMITTED]");
         first_vel = false;
       }
     }
@@ -513,9 +518,8 @@ void load_received_data()
 {
   // odczytuje 4 bajty i laduje je do tablicy bytes_read
   Serial1.readBytes(bytes_read, 4);
-  Serial1.flush();
   control = bytes_read[0];
-
+  
   load_value();
 }
 
