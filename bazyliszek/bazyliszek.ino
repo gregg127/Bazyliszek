@@ -19,18 +19,9 @@
 #define MOTOR_RIGHT_PWM 11
 #define MOTOR_RIGHT_ENC 3
 
-#define BUMPER_LEFT A0
-#define BUMPER_CENTER A1
-#define BUMPER_RIGHT A2
-
-#define PID_P_MOVE 1.51 // propocja - 255 -> 100 = 155 to jest zjazd
-#define PID_I_MOVE 0.01 // calka - stala wartosc przez ktora mnozy sie sume
-#define PID_D_MOVE 1.51 // pochodna - stala wartosc przez ktora mnozy sie roznice
-
-#define PID_P_DRIVE -22      // propocja - 255 -> 100 = 155 to jest zjazd
-#define PID_I_DRIVE -0.0149  // calka - stala wartosc przez ktora mnozy sie sume
-#define PID_D_DRIVE -19      // pochodna - stala wartosc przez ktora mnozy sie roznice
-#define DT_INCREASE_RATE 100 // funkja drive
+#define BUMPER_LEFT A1
+#define BUMPER_CENTER A2
+#define BUMPER_RIGHT A0
 
 //================================================================================
 //                          MOTOR STRUKTURA
@@ -46,10 +37,8 @@ struct Motor
   int pwm_pin;
   //Numer wejscia/wyjscia mikrokontrolera do odczytu wartosci enkodera silnika
   int enc_pin;
-  //Licznik zmian stanu enkodera
-  unsigned long encoder_counter;
-  //Czas ostatniej zmiany enkodera
-  unsigned long encoder_timestamp;
+  //Kierunek jazdy
+  bool is_forward = true;
 
   //Konstruktor z ustawieniem wejsc/wyjsc dla silnika
   Motor(int _dir_pin_1, int _dir_pin_2, int _pwm_pin, int _enc_pin)
@@ -63,9 +52,6 @@ struct Motor
     pinMode(dir_pin_2, OUTPUT);
     pinMode(pwm_pin, OUTPUT);
     pinMode(enc_pin, INPUT);
-
-    encoder_counter = 0L;
-    encoder_timestamp = millis();
   }
 
   //Tryb jazdy do przodu
@@ -73,6 +59,7 @@ struct Motor
   {
     digitalWrite(dir_pin_1, HIGH);
     digitalWrite(dir_pin_2, LOW);
+    is_forward = true;
   }
 
   //Tryb jazdy do tylu
@@ -80,14 +67,23 @@ struct Motor
   {
     digitalWrite(dir_pin_1, LOW);
     digitalWrite(dir_pin_2, HIGH);
+    is_forward = false;
   }
 
   //Szybkie zatrzymanie
   void fast_stop()
   {
-    analogWrite(pwm_pin, 255);
+    analogWrite(pwm_pin, 0);
     digitalWrite(dir_pin_1, LOW);
     digitalWrite(dir_pin_2, LOW);
+  }
+
+  void fast_stop_forward()
+  {
+    if (is_forward)
+    {
+      fast_stop();
+    }
   }
 
   //Zatrzymanie
@@ -100,23 +96,6 @@ struct Motor
   void pwm(int pwm)
   {
     analogWrite(pwm_pin, pwm);
-  }
-
-  //Obsluzenie przerwania
-  void interrupt()
-  {
-    unsigned long interrupt_time = millis();
-    if (interrupt_time - encoder_timestamp > 1)
-    {
-      encoder_counter++;
-    }
-    encoder_timestamp = interrupt_time;
-  }
-
-  // Wyzerowanie licznika obrotow
-  void reset_encoder_counter()
-  {
-    encoder_counter = 0L;
   }
 };
 
@@ -134,7 +113,6 @@ int read_value;                         // odczytana wartosc
 char read_value_chars[INPUT_SIZE] = ""; // tymczasowa tablica przechowujaca odczytana wartosc + '\0' (znak konca linii)
 
 // Zmienne wspomagajace kontrolowanie silnikow robota
-int turn_right = true;
 int pwm_motors = 0;
 
 //================================================================================
@@ -148,29 +126,10 @@ void setup()
   // Port wspomagajacy debugowanie
   Serial.begin(9600);
 
-  attach_motors_interrupts();
-
-  // Bumpers
+  // Bumpery
   pinMode(BUMPER_LEFT, INPUT_PULLUP);
   pinMode(BUMPER_CENTER, INPUT_PULLUP);
   pinMode(BUMPER_RIGHT, INPUT_PULLUP);
-}
-
-//Przypisanie funkcji obsługującej przerwania z enkoderów
-void attach_motors_interrupts()
-{
-  attachInterrupt(left_motor.enc_pin, left_motor_interrupt, RISING);
-  attachInterrupt(right_motor.enc_pin, right_motor_interrupt, RISING);
-}
-
-void left_motor_interrupt()
-{
-  left_motor.interrupt();
-}
-
-void right_motor_interrupt()
-{
-  right_motor.interrupt();
 }
 
 //================================================================================
@@ -179,8 +138,12 @@ void right_motor_interrupt()
 
 void loop()
 {
-  // Sprawdz czy roboty uderzyl w sciane
-  bumpers_check();
+  // Sprawdz czy robot uderzyl w sciane
+  if (bumpers_check())
+  {
+    right_motor.fast_stop_forward();
+    left_motor.fast_stop_forward();
+  }
 
   if (Serial1.available() >= INPUT_SIZE)
   {
@@ -195,7 +158,7 @@ void loop()
     case 'v': // ustawienie mocy silnikow
       set_velocity();
       break;
-    case 'p': // procent obrocenia silnikow
+    case 'p': // wartosc odwrocenia silnikow
       turn_motors();
       break;
     case 'b': // ustaw silniki na jazde do tylu
@@ -215,15 +178,11 @@ void loop()
 //                          FUNKCJE STERUJACE
 //================================================================================
 
-void bumpers_check()
+bool bumpers_check()
 {
-  if (digitalRead(BUMPER_LEFT) == LOW ||
-      digitalRead(BUMPER_CENTER) == LOW ||
-      digitalRead(BUMPER_RIGHT) == LOW)
-  {
-    right_motor.fast_stop();
-    left_motor.fast_stop();
-  }
+  return (digitalRead(BUMPER_LEFT) == LOW ||
+          digitalRead(BUMPER_CENTER) == LOW ||
+          digitalRead(BUMPER_RIGHT) == LOW);
 }
 
 void set_velocity()
@@ -242,7 +201,7 @@ void turn_motors()
   }
   else // prawo
   {
-    right_motor.pwm(pwm_motors * (100 - (read_value - 100) / 100));
+    right_motor.pwm((pwm_motors * (100 - (read_value - 100))) / 100);
     left_motor.pwm(pwm_motors);
   }
 }
@@ -288,22 +247,21 @@ void print_flag_info_serial()
   Serial.println();
 }
 
-/*==============================================================================
-                            PROTOKOL KOMUNIKACJI
-  ==============================================================================
+// ==============================================================================
+//                         PROTOKOL KOMUNIKACJI
+// ==============================================================================
+// --- Działanie protokołu:
+// postac flagi: znak + trzy cyfry, no. f259, b000
+// protokol umozliwia wysylanie dowolnej wartosci
+// o maksymalnej liczbie cyfr rownej 3 oraz znak
+// oznaczajacy akcje wykonywana przez robota
+// Przyklad: jezeli chcesz wyslac flage ze znakiem r o wartosci 90
+// flaga wyslana przez port szeregowy powinna miec postac: r090
+// --- Zmienne:
+// bytes_read - tablica 4 bajtow do ktorej sa pakowane dane z portu szeregowego
+// control - char, znak sterujacy robotem
+// read_value - integer, wartosc odczytana z portu szeregowego
 
-   --- Działanie protokołu:
-   postac flagi: znak + trzy cyfry, no. f259, b000
-   protokol umozliwia wysylanie dowolnej wartosci
-   o maksymalnej liczbie cyfr rownej 3 oraz znak
-   oznaczajacy akcje wykonywana przez robota
-   Przyklad: jezeli chcesz wyslac flage ze znakiem r o wartosci 90
-   flaga wyslana przez port szeregowy powinna miec postac: r090
-   --- Zmienne:
-   bytes_read - tablica 4 bajtow do ktorej sa pakowane dane z portu szeregowego
-   control - char, znak sterujacy robotem
-   read_value - integer, wartosc odczytana z portu szeregowego
-*/
 void load_received_data()
 {
   // Odczytuje bajty i laduje je do tablicy bytes_read
