@@ -1,3 +1,2 @@
 # Robot jezdzacy 'Bazyliszek'
----
-Prosty robot jeżdżący.
+Podążanie za piłeczką z pomocą Raspberry Pi z kamerą i OpenCV.
