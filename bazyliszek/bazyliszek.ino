@@ -12,16 +12,26 @@
 #define MOTOR_LEFT_DIR_1 8
 #define MOTOR_LEFT_DIR_2 7
 #define MOTOR_LEFT_PWM 10
-#define MOTOR_LEFT_ENC 2
+#define MOTOR_LEFT_ENC_FIRST 3
+#define MOTOR_LEFT_ENC_SECOND A4
 
 #define MOTOR_RIGHT_DIR_1 13
 #define MOTOR_RIGHT_DIR_2 12
 #define MOTOR_RIGHT_PWM 11
-#define MOTOR_RIGHT_ENC 3
+#define MOTOR_RIGHT_ENC_FIRST 2
+#define MOTOR_RIGHT_ENC_SECOND A5
 
 #define BUMPER_LEFT A1
 #define BUMPER_CENTER A2
 #define BUMPER_RIGHT A0
+
+//Parametry enkoderow, przekladni i kol
+#define INTERRUPTS_TO_MM 0.615998
+#define ROBOT_WIDTH 295 
+#define LIN_DISPLACEMENT_RATIO INTERRUPTS_TO_MM / 2
+#define THETA_RATIO INTERRUPTS_TO_MM / ROBOT_WIDTH
+#define ODOMETRY_CHECK_INTERVAL 100 // in milisceonds
+
 
 //================================================================================
 //                          MOTOR STRUKTURA
@@ -35,23 +45,32 @@ struct Motor
   int dir_pin_2;
   //Numer wejscia/wyjscia mikrokontrolera sterujacego wypelnieniem PWM
   int pwm_pin;
-  //Numer wejscia/wyjscia mikrokontrolera do odczytu wartosci enkodera silnika
-  int enc_pin;
   //Kierunek jazdy
   bool is_forward = true;
 
+  //Numer wejscia/wyjscia mikrokontrolera do odczytu pierwszej wartosci enkodera silnika
+  int enc_pin_first;
+  //Numer wejscia/wyjscia mikrokontrolera do odczytu drugiej przesunietej w fazie wartosci enkodera silnika
+  int enc_pin_second;
+  //Licznik zmian stanu enkodera
+  unsigned long encoder_counter;
+  //Czas ostatniej zmiany enkodera
+  unsigned long encoder_timestamp;
+
   //Konstruktor z ustawieniem wejsc/wyjsc dla silnika
-  Motor(int _dir_pin_1, int _dir_pin_2, int _pwm_pin, int _enc_pin)
+  Motor(int _dir_pin_1, int _dir_pin_2, int _pwm_pin, int _enc_pin_first, int _enc_pin_second)
   {
     dir_pin_1 = _dir_pin_1;
     dir_pin_2 = _dir_pin_2;
     pwm_pin = _pwm_pin;
-    enc_pin = _enc_pin;
+    enc_pin_first = _enc_pin_first;
+    enc_pin_second = _enc_pin_second;
 
     pinMode(dir_pin_1, OUTPUT);
     pinMode(dir_pin_2, OUTPUT);
     pinMode(pwm_pin, OUTPUT);
-    pinMode(enc_pin, INPUT);
+    pinMode(enc_pin_first, INPUT);
+    pinMode(enc_pin_second, INPUT);
   }
 
   //Tryb jazdy do przodu
@@ -97,14 +116,50 @@ struct Motor
   {
     analogWrite(pwm_pin, pwm);
   }
+
+  //Obsluzenie przerwania
+  void interrupt()
+  {
+    
+//    Serial.print("Interrupt: ");
+//    Serial.print(enc_pin_first);
+//    Serial.print(", counter: ");
+//    // Wyswietlenie przejechanego dystansu w milimetrach
+//    Serial.print(((double)encoder_counter)*INTERRUPTS_TO_MM);
+//
+//    if(!digitalRead(enc_pin_second))
+//    {
+//      // pierwszy wysoki, drugi niski - FALLING
+//      Serial.println(", FORWARD");
+//    } 
+//    else if(digitalRead(enc_pin_second))
+//    {
+//      // pierwszy niski, drugi wysoki - RISING
+//      Serial.println(", BACKWARD");
+//    }
+    
+    unsigned long interrupt_time = millis();
+    if (interrupt_time - encoder_timestamp > 1)
+    {
+      encoder_counter++;
+    }
+    encoder_timestamp = interrupt_time;
+  }
+
+  void reset_encoder_counter()
+  {
+    encoder_counter = 0L;
+  }
+
+  
 };
 
 //================================================================================
 //                          ZMIENNE GLOBALNE
 //================================================================================
 
-Motor right_motor = Motor(MOTOR_RIGHT_DIR_1, MOTOR_RIGHT_DIR_2, MOTOR_RIGHT_PWM, MOTOR_RIGHT_ENC);
-Motor left_motor = Motor(MOTOR_LEFT_DIR_1, MOTOR_LEFT_DIR_2, MOTOR_LEFT_PWM, MOTOR_LEFT_ENC);
+Motor right_motor = Motor(MOTOR_RIGHT_DIR_1, MOTOR_RIGHT_DIR_2, MOTOR_RIGHT_PWM, MOTOR_RIGHT_ENC_FIRST, MOTOR_RIGHT_ENC_SECOND);
+Motor left_motor = Motor(MOTOR_LEFT_DIR_1, MOTOR_LEFT_DIR_2, MOTOR_LEFT_PWM, MOTOR_LEFT_ENC_FIRST, MOTOR_LEFT_ENC_SECOND);
 
 // Zmienne obslugujace komunikacje na porcie szeregowym
 char bytes_read[INPUT_SIZE];            // tablica 4 bajtow do odczytywania danych
@@ -114,6 +169,12 @@ char read_value_chars[INPUT_SIZE] = ""; // tymczasowa tablica przechowujaca odcz
 
 // Zmienne wspomagajace kontrolowanie silnikow robota
 int pwm_motors = 0;
+
+// Zmienne odometryczne
+double theta = 0;
+long x = 0;
+long y = 0;
+long long last_check = 0;
 
 //================================================================================
 //                          SETUP PROGRAMU
@@ -130,6 +191,24 @@ void setup()
   pinMode(BUMPER_LEFT, INPUT_PULLUP);
   pinMode(BUMPER_CENTER, INPUT_PULLUP);
   pinMode(BUMPER_RIGHT, INPUT_PULLUP);
+
+  attach_motors_interrupts();
+}
+
+void attach_motors_interrupts()
+{
+  attachInterrupt(digitalPinToInterrupt(left_motor.enc_pin_first), left_motor_interrupt, RISING);
+  attachInterrupt(digitalPinToInterrupt(right_motor.enc_pin_first), right_motor_interrupt, FALLING);
+}
+
+void left_motor_interrupt()
+{
+  left_motor.interrupt();
+}
+
+void right_motor_interrupt()
+{
+  right_motor.interrupt();
 }
 
 //================================================================================
@@ -144,6 +223,8 @@ void loop()
     right_motor.fast_stop_forward();
     left_motor.fast_stop_forward();
   }
+
+  odometry();
 
   if (Serial1.available() >= INPUT_SIZE)
   {
@@ -238,6 +319,8 @@ void stop_motors(boolean fast_stop)
 //                          FUNKCJE POMOCNICZE
 //================================================================================
 
+
+
 void print_flag_info_serial()
 {
   Serial.print("Flag: ");
@@ -247,9 +330,57 @@ void print_flag_info_serial()
   Serial.println();
 }
 
-// ==============================================================================
+//================================================================================
+//                          FUNKCJE ODOMETRYCZNE
+//================================================================================
+void odometry()
+{
+  long long timestamp = millis();
+  if (timestamp - last_check >= ODOMETRY_CHECK_INTERVAL)
+  {
+    double linear_displacement = calculate_delta_linear_displacement();
+    update_theta();
+    update_x_position(linear_displacement);
+    update_y_position(linear_displacement);
+    Serial.print(x);
+    Serial.print(' ');
+    Serial.print(y);
+    Serial.println();
+
+    right_motor.reset_encoder_counter();
+    left_motor.reset_encoder_counter();
+    last_check = timestamp;
+  }
+}
+
+double calculate_delta_linear_displacement() // delta U
+{
+  return LIN_DISPLACEMENT_RATIO * (left_motor.encoder_counter + right_motor.encoder_counter);
+}
+
+double calculate_delta_theta() // delta Theta
+{
+  return THETA_RATIO * (right_motor.encoder_counter - left_motor.encoder_counter);
+}
+
+void update_theta() 
+{
+  theta += calculate_delta_theta();
+}
+
+void update_x_position(double delta_linear_displacement)
+{
+  x += delta_linear_displacement * cos(theta);
+}
+
+void update_y_position(double delta_linear_displacement)
+{
+  y += delta_linear_displacement * sin(theta);
+}
+
+// ===============================================================================
 //                         PROTOKOL KOMUNIKACJI
-// ==============================================================================
+// ===============================================================================
 // --- Działanie protokołu:
 // postac flagi: znak + trzy cyfry, no. f259, b000
 // protokol umozliwia wysylanie dowolnej wartosci
