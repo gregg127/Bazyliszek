@@ -12,14 +12,23 @@
 #define MOTOR_LEFT_DIR_1 22
 #define MOTOR_LEFT_DIR_2 23
 #define MOTOR_LEFT_PWM 6
-#define MOTOR_LEFT_ENC 10
+#define MOTOR_LEFT_ENC_FIRST 20
+#define MOTOR_LEFT_ENC_SECOND 50
 
 #define MOTOR_RIGHT_DIR_1 24
 #define MOTOR_RIGHT_DIR_2 25
 #define MOTOR_RIGHT_PWM 7
-#define MOTOR_RIGHT_ENC 11
+#define MOTOR_RIGHT_ENC_FIRST 21
+#define MOTOR_RIGHT_ENC_SECOND 51
 
 #define BUMPERS 2
+
+// Parametry enkoderow, przekladni i kol
+#define INTERRUPTS_TO_MM 0.615998
+#define ROBOT_WIDTH 295
+#define LIN_DISPLACEMENT_RATIO INTERRUPTS_TO_MM / 2
+#define THETA_RATIO INTERRUPTS_TO_MM / ROBOT_WIDTH
+#define ODOMETRY_CHECK_INTERVAL 100 // in milisceonds
 
 //================================================================================
 //                          MOTOR STRUKTURA
@@ -33,23 +42,32 @@ struct Motor
   int dir_pin_2;
   //Numer wejscia/wyjscia mikrokontrolera sterujacego wypelnieniem PWM
   int pwm_pin;
-  //Numer wejscia/wyjscia mikrokontrolera do odczytu wartosci enkodera silnika
-  int enc_pin;
   //Kierunek jazdy
   bool is_forward = true;
 
+  //Numer wejscia/wyjscia mikrokontrolera do odczytu pierwszej wartosci enkodera silnika
+  int enc_pin_first;
+  //Numer wejscia/wyjscia mikrokontrolera do odczytu drugiej przesunietej w fazie wartosci enkodera silnika
+  int enc_pin_second;
+  //Licznik zmian stanu enkodera
+  unsigned long encoder_counter;
+  //Czas ostatniej zmiany enkodera
+  unsigned long encoder_timestamp;
+
   //Konstruktor z ustawieniem wejsc/wyjsc dla silnika
-  Motor(int _dir_pin_1, int _dir_pin_2, int _pwm_pin, int _enc_pin)
+  Motor(int _dir_pin_1, int _dir_pin_2, int _pwm_pin, int _enc_pin_first, int _enc_pin_second)
   {
     dir_pin_1 = _dir_pin_1;
     dir_pin_2 = _dir_pin_2;
     pwm_pin = _pwm_pin;
-    enc_pin = _enc_pin;
+    enc_pin_first = _enc_pin_first;
+    enc_pin_second = _enc_pin_second;
 
     pinMode(dir_pin_1, OUTPUT);
     pinMode(dir_pin_2, OUTPUT);
     pinMode(pwm_pin, OUTPUT);
-    pinMode(enc_pin, INPUT);
+    pinMode(enc_pin_first, INPUT);
+    pinMode(enc_pin_second, INPUT);
   }
 
   //Tryb jazdy do przodu
@@ -95,14 +113,46 @@ struct Motor
   {
     analogWrite(pwm_pin, pwm);
   }
+
+  void interrupt()
+  {
+    Serial.print("Interrupt: ");
+    Serial.print(enc_pin_first);
+    Serial.print(", milimeters driven: ");
+    // Wyswietlenie przejechanego dystansu w milimetrach
+    Serial.print(((double)encoder_counter)*INTERRUPTS_TO_MM);
+
+    if (!digitalRead(enc_pin_second))
+    {
+      // pierwszy wysoki, drugi niski - FALLING
+      Serial.println(", FORWARD");
+    }
+    else if (digitalRead(enc_pin_second))
+    {
+      // pierwszy niski, drugi wysoki - RISING
+      Serial.println(", BACKWARD");
+    }
+
+    unsigned long interrupt_time = millis();
+    if (interrupt_time - encoder_timestamp > 1)
+    {
+      encoder_counter++;
+    }
+    encoder_timestamp = interrupt_time;
+  }
+
+  void reset_encoder_counter()
+  {
+    encoder_counter = 0L;
+  }
 };
 
 //================================================================================
 //                          ZMIENNE GLOBALNE
 //================================================================================
 
-Motor right_motor = Motor(MOTOR_RIGHT_DIR_1, MOTOR_RIGHT_DIR_2, MOTOR_RIGHT_PWM, MOTOR_RIGHT_ENC);
-Motor left_motor = Motor(MOTOR_LEFT_DIR_1, MOTOR_LEFT_DIR_2, MOTOR_LEFT_PWM, MOTOR_LEFT_ENC);
+Motor right_motor = Motor(MOTOR_RIGHT_DIR_1, MOTOR_RIGHT_DIR_2, MOTOR_RIGHT_PWM, MOTOR_RIGHT_ENC_FIRST, MOTOR_RIGHT_ENC_SECOND);
+Motor left_motor = Motor(MOTOR_LEFT_DIR_1, MOTOR_LEFT_DIR_2, MOTOR_LEFT_PWM, MOTOR_LEFT_ENC_FIRST, MOTOR_LEFT_ENC_SECOND);
 
 // Zmienne obslugujace komunikacje na porcie szeregowym
 char bytes_read[INPUT_SIZE];            // tablica 4 bajtow do odczytywania danych
@@ -124,7 +174,17 @@ void setup()
 
   // Bumpery
   pinMode(BUMPERS, INPUT_PULLUP);
+
+  attach_interrupts();
 }
+
+void attach_interrupts()
+{
+  attachInterrupt(digitalPinToInterrupt(BUMPERS), bumpers_interrupt, FALLING);
+  attachInterrupt(digitalPinToInterrupt(left_motor.enc_pin_first), left_motor_interrupt, RISING);
+  attachInterrupt(digitalPinToInterrupt(right_motor.enc_pin_first), right_motor_interrupt, RISING);
+}
+
 
 //================================================================================
 //                          GLOWNA PETLA PROGRAMU
@@ -132,13 +192,6 @@ void setup()
 
 void loop()
 {
-  // Sprawdz czy robot uderzyl w sciane
-  if (bumpers_check())
-  {
-    right_motor.fast_stop_forward();
-    left_motor.fast_stop_forward();
-  }
-
   if (Serial.available() >= INPUT_SIZE)
   {
     load_received_data();
@@ -149,21 +202,21 @@ void loop()
     // Do sterowania nalezy korzystac ze zmiennych 'control' oraz 'read_value'
     switch (control)
     {
-    case 'v': // ustawienie mocy silnikow
-      set_velocity();
-      break;
-    case 'p': // wartosc odwrocenia silnikow
-      turn_motors();
-      break;
-    case 'b': // ustaw silniki na jazde do tylu
-      set_motors_direction(false);
-      break;
-    case 'f': // ustaw silniki na jazde prostO
-      set_motors_direction(true);
-      break;
-    case 's': // gwaltowne zatrzymanie silnikow
-      stop_motors(true);
-      break;
+      case 'v': // ustawienie mocy silnikow
+        set_velocity();
+        break;
+      case 'p': // wartosc odwrocenia silnikow
+        turn_motors();
+        break;
+      case 'b': // ustaw silniki na jazde do tylu
+        set_motors_direction(false);
+        break;
+      case 'f': // ustaw silniki na jazde prostO
+        set_motors_direction(true);
+        break;
+      case 's': // gwaltowne zatrzymanie silnikow
+        stop_motors(true);
+        break;
     }
   }
 }
@@ -172,17 +225,29 @@ void loop()
 //                          FUNKCJE STERUJACE
 //================================================================================
 
-bool bumpers_check()
+void bumpers_interrupt()
 {
-  return (digitalRead(BUMPERS) == LOW);
+  right_motor.fast_stop_forward();
+  left_motor.fast_stop_forward();
+}
+
+void left_motor_interrupt()
+{
+  left_motor.interrupt();
+}
+
+void right_motor_interrupt()
+{
+  right_motor.interrupt();
 }
 
 void set_velocity()
 {
-  
-//  for(int i=0; i <= pwm; i+=20) {
-//    analogWrite(pwm_pin, i);
-//  }
+
+  //  for(int i=0; i <= pwm; i+=20) {
+  //    analogWrite(pwm_pin, i);
+  //  }
+  set_motors_direction(true);
   left_motor.pwm(read_value);
   right_motor.pwm(read_value);
   pwm_motors = read_value;
