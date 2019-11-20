@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Robot jeżdzący 'Bazyliszek'
 Trzykołowy robot napędzany dwoma silnikami z enkoderami magnetycznymi. Robot wykorzystywany jest głównie do badań nad odometrią i ogólną lokalizacją.
 ## Gałęzie projektu
@@ -5,3 +6,7 @@ Trzykołowy robot napędzany dwoma silnikami z enkoderami magnetycznymi. Robot w
 Odnoga projektu w której obsłużone jest sterowanie robotem poprzez Bluetooth i stworzoną aplikację na Androida z wykorzystaniem [MIT App Inventor](http://appinventor.mit.edu/).
 * [red_ball](https://github.com/gregg127/Bazyliszek/tree/red_balls)  
 Gałąź w której zrealizowana jest zdalna komunikacja z robotem poprzez Raspberry Pi oraz rozwijane jest podążanie za piłką w jednym ze zdefiniowanych kolorów. Wykorzystywana jest kamera do Raspberry Pi oraz biblioteka [OpenCV](https://opencv.org/).
+=======
+# Robot jezdzacy 'Bazyliszek'
+Gałąź projektu w której obsłużone jest sterowanie robotem poprzez Bluetooth i stworzoną aplikację na Androida z wykorzystaniem MIT App Inventor.
+>>>>>>> 0c4ab36a56f0fea67e818213d8ae60a788af6f08
