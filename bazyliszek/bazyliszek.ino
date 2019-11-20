@@ -23,6 +23,13 @@
 
 #define BUMPERS 2
 
+#define LED_RED 26
+#define LED_GREEN 27
+#define LED_BLUE 28
+
+#define DEBUG 1
+#define INTERRUPT_DEBUG_COUNTER_INTERVAL 1000
+
 // Parametry enkoderow, przekladni i kol
 #define INTERRUPTS_TO_MM 0.615998
 #define ROBOT_WIDTH 295
@@ -116,29 +123,15 @@ struct Motor
 
   void interrupt()
   {
-    Serial.print("Interrupt: ");
-    Serial.print(enc_pin_first);
-    Serial.print(", milimeters driven: ");
-    // Wyswietlenie przejechanego dystansu w milimetrach
-    Serial.print(((double)encoder_counter)*INTERRUPTS_TO_MM);
-
-    if (!digitalRead(enc_pin_second))
-    {
-      // pierwszy wysoki, drugi niski - FALLING
-      Serial.println(", FORWARD");
+    if (DEBUG && encoder_counter % INTERRUPT_DEBUG_COUNTER_INTERVAL == 0) {
+      double mm = ((double)encoder_counter) * INTERRUPTS_TO_MM;
+      Serial.print("Interrupt: ");
+      Serial.print(enc_pin_first);
+      Serial.print(", milimeters driven: ");
+      // Wyswietlenie przejechanego dystansu w milimetrach
+      Serial.println(mm);
     }
-    else if (digitalRead(enc_pin_second))
-    {
-      // pierwszy niski, drugi wysoki - RISING
-      Serial.println(", BACKWARD");
-    }
-
-    unsigned long interrupt_time = millis();
-    if (interrupt_time - encoder_timestamp > 1)
-    {
-      encoder_counter++;
-    }
-    encoder_timestamp = interrupt_time;
+    encoder_counter++;
   }
 
   void reset_encoder_counter()
@@ -170,19 +163,24 @@ int pwm_motors = 0;
 void setup()
 {
   // Port do komunikacji z Raspberry PI
-  Serial.begin(9600);
+  Serial.begin(250000);
 
   // Bumpery
   pinMode(BUMPERS, INPUT_PULLUP);
 
   attach_interrupts();
+
+  // Ledy
+  pinMode(LED_RED, OUTPUT);
+  pinMode(LED_BLUE, OUTPUT);
+  pinMode(LED_GREEN, OUTPUT);
 }
 
 void attach_interrupts()
 {
   attachInterrupt(digitalPinToInterrupt(BUMPERS), bumpers_interrupt, FALLING);
   attachInterrupt(digitalPinToInterrupt(left_motor.enc_pin_first), left_motor_interrupt, RISING);
-  attachInterrupt(digitalPinToInterrupt(right_motor.enc_pin_first), right_motor_interrupt, RISING);
+  attachInterrupt(digitalPinToInterrupt(right_motor.enc_pin_first), right_motor_interrupt, FALLING);
 }
 
 
@@ -197,12 +195,14 @@ void loop()
     load_received_data();
 
     // Wyslij na port szeregowy Serial info o otrzymanej fladze i wartosci
-    print_flag_info_serial();
-
+    if (DEBUG) {
+      print_flag_info_serial();
+    }
     // Do sterowania nalezy korzystac ze zmiennych 'control' oraz 'read_value'
     switch (control)
     {
       case 'v': // ustawienie mocy silnikow
+        highlight(LED_GREEN);
         set_velocity();
         break;
       case 'p': // wartosc odwrocenia silnikow
@@ -229,6 +229,7 @@ void bumpers_interrupt()
 {
   right_motor.fast_stop_forward();
   left_motor.fast_stop_forward();
+  highlight(LED_RED);
 }
 
 void left_motor_interrupt()
@@ -306,6 +307,13 @@ void print_flag_info_serial()
   Serial.print(" , value: ");
   Serial.print(read_value);
   Serial.println();
+}
+
+void highlight(int led) {
+  digitalWrite(LED_RED, LOW);
+  digitalWrite(LED_GREEN, LOW);
+  digitalWrite(LED_BLUE, LOW);
+  digitalWrite(led, HIGH);
 }
 
 // ==============================================================================
