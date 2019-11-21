@@ -1,0 +1,8 @@
+prefix=/home/grzesiek/ros-inz/tutorial-1/catkin_ws/devel
+
+Name: multiple_machines
+Description: Description of multiple_machines
+Version: 0.0.0
+Cflags: -I/home/grzesiek/ros-inz/tutorial-1/catkin_ws/devel/include
+Libs: -L/home/grzesiek/ros-inz/tutorial-1/catkin_ws/devel/lib 
+Requires: message_runtime

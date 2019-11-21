@@ -1,0 +1,21 @@
+#####################################
+		PREZENTACJA
+#####################################
+
+# odpalenie mastera
+grzesiek@ubuntu: roscore
+
+# odpalenie wezla wysylajacego dane z lidara
+ubuntu@ubuntu: roslaunch rplidar_ros rplidar.launch
+
+# wlaczenie wizualizowania danych z lidara
+grzesiek@ubuntu: rosrun rviz rviz
+
+# odpalenie wezla wysylajacego dane do silnikow
+grzesiek@ubuntu: rosrun multiple_machines pwm_sender.py
+
+# odpalenie wezla sluchajacego danych ktore wysyla na silnik
+ubuntu@ubuntu: rosrun multiple_machines listener.py
+
+# wizualizacja wezlow
+grzesiek@ubuntu: rosrun rqt_graph rqt_graph

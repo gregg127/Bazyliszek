@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/grzesiek/ros-inz/tutorial-1/catkin_ws/install/setup.sh

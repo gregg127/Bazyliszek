@@ -1,0 +1,33 @@
+# uruchoemienie mastera
+roscore
+
+# wyswietlenie wezlow
+rosnode list
+
+# info o wezlie
+rosnode info turtlesim
+
+# odpalenie wezla /turtlesim_node w paczce /turtlesim
+rosrun turtlesim turtlesim_node
+rosrun turtlesim turtle_teleop_key
+
+# wyswietlenie grafu
+rosrun rqt_graph rqt_graph
+
+# wyswietlenie dostepnych tematow z typami wiadomosci
+rostopic list -v
+
+# nasluchiwanie na temacie
+rostopic echo turtle1/cmd_vel
+
+# wyswietlenie informacji o formacie wiadomosci 
+rosmsg show turtlesim/Pose
+rosmsg show geometry_msgs/Twist
+
+# wyslanie JEDNEJ(-1) wiadomosci na temat bez zadnych opcji (--) 
+# rostopic pub -1 [topic] [msg_type] -- [args]
+rostopic pub -1 /turtle1/cmd_vel geometry_msgs/Twist -- '[2.0, 0.0, 0.0]' '[0.0, 0.0, 2.0]'
+
+# ciagle wysylanie wiadomosci o czestotliwosci 1 Hz
+rostopic pub /turtle1/cmd_vel geometry_msgs/Twist -r 1 -- '[2.0, 0.0, 0.0]' '[0.0, 0.0, 2.0]'
+

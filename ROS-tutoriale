@@ -1,0 +1,232 @@
+################################################
+#		TUTORIAL 0
+################################################
+# http://wiki.ros.org/kinetic/Installation/Ubuntu
+
+
+sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
+
+sudo apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654
+
+sudo apt-get update
+
+# sam ros, bez narzedzi gui
+sudo apt-get install ros-kinetic-ros-base
+
+# inicjalizacja rosdepa - narzedzia do zarzadzania paczkami
+sudo rosdep init
+rosdep update
+
+# konfiguracja zmiennej srodowiskowej basha
+echo "source /opt/ros/kinetic/setup.bash" >> ~/.bashrc
+source ~/.bashrc
+
+# pobranie podstawowych narzedzi rosa
+sudo apt install python-rosinstall python-rosinstall-generator python-wstool build-essential
+
+# KONIEC TUTORIALA - ros zainstalowany
+
+################################################
+#		TUTORIAL 1
+################################################
+# http://wiki.ros.org/ROS/Tutorials/InstallingandConfiguringROSEnvironment
+
+# upewnij sie ze sa zmienne rosa
+printenv | grep ROS
+
+# WYKORZYSTUJEMY catkina
+# stworzenie workspace catkin
+mkdir -p catkin_ws/src
+cd catkin_ws/
+catkin_make
+
+# odpalenie skryptu setupowego z devela - PRZESLONIECIE domyslnej konfiguracji rosa
+source devel/setup.bash
+
+#upewnij sie, ze dobrze sie odpalil - zmienna powinna zawierac folder w ktorym jest workspace
+echo $ROS_PACKAGE_PATH
+
+# KONIEC TUTORIALA - srodowisko ustawione
+
+################################################
+#		TUTORIAL 2
+################################################
+# http://wiki.ros.org/ROS/Tutorials/NavigatingTheFilesystem
+
+# zapoznanie z roscd, rosls itd
+
+################################################
+#		TUTORIAL 3
+################################################
+# http://wiki.ros.org/ROS/Tutorials/CreatingPackage
+
+#otworz wczesniej zrobiony workspace
+cd /catkin_ws/src
+
+# stworzenie paczki o nazwie begginer_tutorials z paczkami std_msgs itd.
+# catkin_create_pkg <package_name> [depend1] [depend2] [depend3]
+catkin_create_pkg beginner_tutorials std_msgs rospy roscpp
+
+# zbudowanie paczek
+cd /catkin_ws
+catkin_make
+
+# dodanie workspace do srodowiska ROSa
+cd catkin_ws/devel
+. setup.bash
+
+# wyswietlenie zaleznosci 1 stopnia
+rospack depends1 beginner_tutorials
+
+# zajrzyj do pliku package.xml - tam jest duzo info o paczce
+
+################################################
+#		TUTORIAL 4
+################################################
+# http://wiki.ros.org/ROS/Tutorials/BuildingPackages
+
+
+################################################
+#		TUTORIAL 5 - WEZLY
+################################################
+# http://wiki.ros.org/ROS/Tutorials/UnderstandingNodes
+
+# zainstyalowanie lekkiego symulatora
+sudo apt-get install ros-kinetic-ros-tutorials
+
+# odpalenie glownego wezla - MASTER - to powinno dzialac w tle
+roscore
+
+# wyswietlenie dzialajacych wezlow
+rosnode list
+
+# wyswietlenie informacji o wezle /rosout
+rosnode info /rosout
+
+# odpalenie wezla /turtlesim_node w paczce /turtlesim
+rosrun turtlesim turtlesim_node
+
+# pingowanie wezla
+rosnode ping turtlesim
+
+################################################
+#		TUTORIAL 6 - TEMATY I WIADOMOSCI
+################################################
+http://wiki.ros.org/ROS/Tutorials/UnderstandingTopics
+
+# odpalamy zolwia
+rosrun turtlesim turtlesim_node
+
+# odpalenie wezla sterujacego zolwiem
+rosrun turtlesim turtle_teleop_key
+
+# sterowanie zolwiem strzalkami, ale INPUT MUSI BYC W TERMINALU
+# Z WEZLEM STERUJACYM
+
+# teraz pora na zainstalowanie narzedzia do podgladu grafu
+sudo apt-get install ros-kinetic-rqt
+sudo apt-get install ros-kinetic-rqt-common-plugins
+
+...
+
+# sprawdzenie na jakiej czestotliwosci sa wysylane wiadomosci na dany temat
+rostopic hz /turtle1/pose
+
+
+################################################
+#		TUTORIAL 7 - USLUGI
+################################################
+http://wiki.ros.org/ROS/Tutorials/UnderstandingServicesParams
+
+# wyswielt dostepne serwisy
+rosservice list
+
+# wyswietl typ uslugi clear
+rosservice type /clear
+
+# wyslij zapytanie do uslugi (bez argumentow)
+rosservice call /clear
+
+# wyswietlenie wiadomosci serwisu /spawn i pokazanie informacji o nich
+rosservice type /spawn | rossrv show
+
+# ROS udostepnie narzedzie 'rosparam' ktore umozliwia
+# trzymanie zmiennych na "serwerze paramtetrow rosa"
+rosparam list
+
+
+################################################
+#		TUTORIAL 8 - DEBUGOWANIE I 
+#		NARZEDZIA GUI
+################################################
+
+
+# wlaczenie wezla z GUI z podgladem wezlow i tematow
+rosrun rqt_console rqt_console
+
+# wlaczenie wezla z ustawianiem 'verbose level' wezlow 
+rosrun rqt_logger_level rqt_logger_level
+
+
+################################################
+#		TUTORIAL 9 - TWORZENIE MSG I SRV
+################################################
+# http://wiki.ros.org/ROS/Tutorials/CreatingMsgAndSrv#Creating_a_msg
+
+1. stworzenie pliku wiadomosci w /msg
+2. dodanie 2 zaleznosci w package.xml
+3. edycja CMakeLists.txt - nie wiem czy dobrze zrobic z CATKIN_DEPENDS tutaj
+4. catkin_make install
+
+
+################################################
+#		STAGE
+################################################
+http://wiki.ros.org/stage/Tutorials
+http://wiki.ros.org/stage/Tutorials/IntroductiontoStageControllers
+
+#!!!!!!!!!!!!!!!!
+#https://answers.ros.org/question/214157/how-do-i-install-stage-and-stage_ros/
+sudo apt-get install ros-kinetic-stage-ros
+
+rosrun stage_ros stageros `rospack find stage_controllers`/world/roomba-wander.world
+TUTORIAL NIE DZIALA - JEST PRZEDAWNIONY - https://answers.ros.org/question/58948/stage-tutorial-error-laser-model-type-not-found/
+
+
+http://wiki.ros.org/stage/Tutorials/SimulatingOneRobot - TO DZIALA
+sudo apt-get install ros-kinetic-teleop-twist-keyboard
+
+rosrun stage_ros stageros $(rospack find stage_ros)/world/willow-erratic.world
+
+rosrun teleop_twist_keyboard teleop_twist_keyboard.py
+
+
+################################################
+#		LIDAR
+################################################
+
+http://wiki.ros.org/rplidar
+https://github.com/robopeak/rplidar_ros/wiki
+
+paczka z lidarem: https://github.com/Slamtec/rplidar_ros
+
+cd catkin_ws/src/
+git clone https://github.com/Slamtec/rplidar_ros.git
+cd catkin_ws/
+catkin_make install
+. devel/setup.bash
+
+> ustawienie sprzetowe lidara 
+
+
+# Wlaczenie wezla wysylajacego dane z lidara
+roslaunch rplidar_ros rplidar.launch
+
+# instalacja rviz
+sudo apt-get install ros-kinetic-rviz
+
+# wlaczenie wezla wyswietlajacego pobierane dane (na masterze)
+rosrun rviz rviz
+
+#!!!
+https://answers.ros.org/question/30562/plotting-lidar-scan-data-in-rviz/

@@ -1,0 +1,2 @@
+uint32 left_motor_pwm
+uint32 right_motor_pwm
