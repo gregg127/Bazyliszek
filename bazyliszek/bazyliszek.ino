@@ -8,7 +8,6 @@
 //==============================================================================
 
 #define INPUT_SIZE 4
-
 #define MOTOR_LEFT_DIR_1 22
 #define MOTOR_LEFT_DIR_2 23
 #define MOTOR_LEFT_PWM 6
@@ -183,6 +182,22 @@ void attach_interrupts()
   attachInterrupt(digitalPinToInterrupt(right_motor.enc_pin_first), right_motor_interrupt, FALLING);
 }
 
+void bumpers_interrupt()
+{
+    right_motor.fast_stop_forward();
+    left_motor.fast_stop_forward();
+    highlight(LED_RED);
+}
+
+void left_motor_interrupt()
+{
+    left_motor.interrupt();
+}
+
+void right_motor_interrupt()
+{
+    right_motor.interrupt();
+}
 
 //================================================================================
 //                          GLOWNA PETLA PROGRAMU
@@ -224,23 +239,6 @@ void loop()
 //================================================================================
 //                          FUNKCJE STERUJACE
 //================================================================================
-
-void bumpers_interrupt()
-{
-  right_motor.fast_stop_forward();
-  left_motor.fast_stop_forward();
-  highlight(LED_RED);
-}
-
-void left_motor_interrupt()
-{
-  left_motor.interrupt();
-}
-
-void right_motor_interrupt()
-{
-  right_motor.interrupt();
-}
 
 void set_velocity()
 {
