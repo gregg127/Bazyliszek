@@ -1,0 +1,31 @@
+Robotyczna platforma edukacyjna
+
+4. Wstęp
+	1.1. Cel pracy
+		Konfiguracja ROSa + napisanie protokołu niskopoziomowego + integracja + symulacja odczytów z robota.
+51.2. Motywacja
+		Stworzenie gotowego rozwiązania dla studentów aby mogli pisać wysokopoziome oprogramowanie dla robota
+2. ROS
+	2.1. Założenia Middleware
+		Opis o co chodzi z Middleware, czyli rozdzielenie odpowiedzialnosci, programowanie bez wiedzy co jest 
+		na robocie, dokładnej konfiguracji niskopoziomowej itp. itd.
+	2.2. Podstawowe założenia ROS
+		opis ekosystemu
+	2.3. Czytanie i symulacja danych z RPLidar
+
+3. Protokół komunikacji pomiędzy komputerem a robotem
+	opis protokołu, jak to działa komunikacja pomiędzy arduino a komputerem(UART) 
+
+4. Sterowania niskopoziomowe
+	regulacja PID, oprogramowanie robota 
+
+6. Opis robota
+	Podwozie, rama, elementy strukturalne, mechaniczne, enkodery wykorzysujace efekt halla, RPLidar
+ 
+5. Podsumowanie
+
+Bibliografia
+	wszystkie zrodla
+
+Załączniki
+	płyta z obrazem z ROSem, płyta z programem do arduino???
