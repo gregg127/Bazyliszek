@@ -4,6 +4,7 @@ Robotyczna platforma edukacyjna
 
 1. Wstęp
 	1. Cel pracy
+	
 	`Konfiguracja ROSa, napisanie protokołu niskopoziomowego, integracja arduino z ROSem. Ogólnie - stworzenie robota który będzie zsynchronizowany z ROSem, dzięki czemu będzie można nim łatwo sterować z poziomu komputera + łatwo programować`
 	2. Motywacja
 	`Stworzenie gotowego rozwiązania dla studentów aby mogli pisać wysokopoziome oprogramowanie dla robota, ucząc się przy tym jak sterować takim robotem wykorzystując ROSa`
