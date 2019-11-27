@@ -10,7 +10,9 @@ Robotyczna platforma edukacyjna
 	2. Motywacja
 	
 	`Stworzenie gotowego rozwiązania dla studentów aby mogli pisać wysokopoziome oprogramowanie dla robota, ucząc się przy tym jak sterować takim robotem wykorzystując ROSa`
+	
 ___
+
 2. ROS
 	1. Założenia Middleware
 	
