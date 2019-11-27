@@ -35,6 +35,7 @@
 #define LIN_DISPLACEMENT_RATIO INTERRUPTS_TO_MM / 2
 #define THETA_RATIO INTERRUPTS_TO_MM / ROBOT_WIDTH
 #define ODOMETRY_CHECK_INTERVAL 100 // in milisceonds
+#define VELOCITY_MEASURE_INTERVAL 200 //in miliseconds
 
 // Parametry komunikacji szeregowej
 #define BAUDRATE 250000
@@ -45,143 +46,139 @@
 
 struct Motor
 {
-    //Wskaźnik na drugi silnik
-    Motor* another_motor;
-    //Numer wejscia/wyjscia mikrokontrolera sterujacego polaryzacja
-    int dir_pin_1;
-    //Numer wejscia/wyjscia mikrokontrolera sterujacego polaryzacja
-    int dir_pin_2;
-    //Numer wejscia/wyjscia mikrokontrolera sterujacego wypelnieniem PWM
-    int pwm_pin;
-    //Kierunek jazdy
-    bool is_forward = true;
+  //Wskaźnik na drugi silnik
+  Motor* another_motor;
+  //Numer wejscia/wyjscia mikrokontrolera sterujacego polaryzacja
+  int dir_pin_1;
+  //Numer wejscia/wyjscia mikrokontrolera sterujacego polaryzacja
+  int dir_pin_2;
+  //Numer wejscia/wyjscia mikrokontrolera sterujacego wypelnieniem PWM
+  int pwm_pin;
+  //Kierunek jazdy
+  bool is_forward = true;
 
-    //Numer wejscia/wyjscia mikrokontrolera do odczytu pierwszej wartosci enkodera silnika
-    int enc_pin_first;
-    //Numer wejscia/wyjscia mikrokontrolera do odczytu drugiej przesunietej w fazie wartosci enkodera silnika
-    int enc_pin_second;
-    //Licznik zmian stanu enkodera
-    unsigned long encoder_counter;
-    //Poprzedni przejechany dystans
-    unsigned long prev_encoder_counter;
-    //Czas ostatniej zmiany enkodera
-    unsigned long encoder_timestamp;
-    //Aktualna predkosc
-    float velocity;
+  //Numer wejscia/wyjscia mikrokontrolera do odczytu pierwszej wartosci enkodera silnika
+  int enc_pin_first;
+  //Numer wejscia/wyjscia mikrokontrolera do odczytu drugiej przesunietej w fazie wartosci enkodera silnika
+  int enc_pin_second;
+  //Licznik zmian stanu enkodera
+  unsigned long encoder_counter;
+  //Poprzedni przejechany dystans
+  unsigned long prev_encoder_counter;
+  //Czas ostatniej zmiany enkodera
+  unsigned long encoder_timestamp;
+  //Aktualna predkosc
+  float velocity;
 
-    Motor() {
-      
-    }
+  Motor()
+  {
+  }
 
-    //Konstruktor z ustawieniem wejsc/wyjsc dla silnika
-    Motor(int _dir_pin_1, int _dir_pin_2, int _pwm_pin, int _enc_pin_first, int _enc_pin_second)
+  //Konstruktor z ustawieniem wejsc/wyjsc dla silnika
+  Motor(int _dir_pin_1, int _dir_pin_2, int _pwm_pin, int _enc_pin_first, int _enc_pin_second)
+  {
+    dir_pin_1 = _dir_pin_1;
+    dir_pin_2 = _dir_pin_2;
+    pwm_pin = _pwm_pin;
+    enc_pin_first = _enc_pin_first;
+    enc_pin_second = _enc_pin_second;
+
+    pinMode(dir_pin_1, OUTPUT);
+    pinMode(dir_pin_2, OUTPUT);
+    pinMode(pwm_pin, OUTPUT);
+    pinMode(enc_pin_first, INPUT);
+    pinMode(enc_pin_second, INPUT);
+
+    reset_encoder_counter();
+    encoder_timestamp = 0;
+    velocity = 0;
+    prev_encoder_counter = 0;
+  }
+
+  //Tryb jazdy do przodu
+  void forward()
+  {
+    digitalWrite(dir_pin_1, HIGH);
+    digitalWrite(dir_pin_2, LOW);
+    is_forward = true;
+    reset_prev_counters();
+  }
+
+  //Tryb jazdy do tylu
+  void backward()
+  {
+    digitalWrite(dir_pin_1, LOW);
+    digitalWrite(dir_pin_2, HIGH);
+    is_forward = false;
+    reset_prev_counters();
+  }
+
+  //Szybkie zatrzymanie
+  void fast_stop()
+  {
+    analogWrite(pwm_pin, 0);
+    digitalWrite(dir_pin_1, LOW);
+    digitalWrite(dir_pin_2, LOW);
+  }
+
+  void fast_stop_forward()
+  {
+    if (is_forward)
     {
-        dir_pin_1 = _dir_pin_1;
-        dir_pin_2 = _dir_pin_2;
-        pwm_pin = _pwm_pin;
-        enc_pin_first = _enc_pin_first;
-        enc_pin_second = _enc_pin_second;
-
-        pinMode(dir_pin_1, OUTPUT);
-        pinMode(dir_pin_2, OUTPUT);
-        pinMode(pwm_pin, OUTPUT);
-        pinMode(enc_pin_first, INPUT);
-        pinMode(enc_pin_second, INPUT);
-
-        reset_encoder_counter();
-        encoder_timestamp = 0;
-        velocity = 0;
-        prev_encoder_counter = 0;
+      fast_stop();
     }
+  }
 
-    //Tryb jazdy do przodu
-    void forward()
-    {
-        digitalWrite(dir_pin_1, HIGH);
-        digitalWrite(dir_pin_2, LOW);
-        is_forward = true;
-        encoder_timestamp = 0;
-        prev_encoder_counter = 0;
-    }
+  //Zatrzymanie
+  void stop()
+  {
+    analogWrite(pwm_pin, 0);
+  }
 
-    //Tryb jazdy do tylu
-    void backward()
-    {
-        digitalWrite(dir_pin_1, LOW);
-        digitalWrite(dir_pin_2, HIGH);
-        is_forward = false;
-    }
+  //Ustawienie mocy
+  void pwm(int pwm)
+  {
+    analogWrite(pwm_pin, pwm);
+  }
 
-    //Szybkie zatrzymanie
-    void fast_stop()
-    {
-        analogWrite(pwm_pin, 0);
-        digitalWrite(dir_pin_1, LOW);
-        digitalWrite(dir_pin_2, LOW);
+  float measure_velocity()
+  {
+    unsigned long current_millis = millis();
+    if ((current_millis - encoder_timestamp) > VELOCITY_MEASURE_INTERVAL) {
+      velocity = ((float)(encoder_counter - prev_encoder_counter)) * INTERRUPTS_TO_MM / (current_millis - encoder_timestamp);
+      encoder_timestamp = current_millis;
+      prev_encoder_counter = encoder_counter;
     }
+    return velocity;
+  }
 
-    void fast_stop_forward()
-    {
-        if (is_forward)
-        {
-            fast_stop();
-        }
-    }
+  void interrupt()
+  {
+    encoder_counter++;
+  }
 
-    //Zatrzymanie
-    void stop()
-    {
-        analogWrite(pwm_pin, 0);
-    }
+  bool is_faster_than_another_motor()
+  {
+    return velocity > another_motor->velocity;
+  }
 
-    //Ustawienie mocy
-    void pwm(int pwm)
-    {
-        analogWrite(pwm_pin, pwm);
-    }
-
-    void interrupt()
-    {
-      unsigned long current_millis = 0;
-       
-        encoder_counter++;
-        current_millis = millis();
-        if ((current_millis - encoder_timestamp) > 1000) {
-          velocity = ((float)(encoder_counter - prev_encoder_counter))*INTERRUPTS_TO_MM / (current_millis - encoder_timestamp);
-          encoder_timestamp = current_millis;
-          prev_encoder_counter = encoder_counter;
-          if (DEBUG) {
-            double mm = ((double)encoder_counter) * INTERRUPTS_TO_MM;
-            Serial.print("Interrupt: ");
-            Serial.print(enc_pin_first);
-            Serial.print("\t milimeters driven: ");
-            // Wyswietlenie przejechanego dystansu w milimetrach
-            Serial.print(mm);
-            Serial.print("\t velocity: ");
-            Serial.print(velocity);
-            Serial.print("\tIs faster than another: ");
-            Serial.println(is_faster_than_another_motor());
-          }
-        }
-        
-    }
-
-    bool is_faster_than_another_motor() {
-      return velocity > another_motor->velocity;
-    }
-
-    void reset_encoder_counter()
-    {
-        encoder_counter = 0L;
-    }
+  void reset_encoder_counter()
+  {
+    encoder_counter = 0L;
+  }
+  void reset_prev_counters()
+  {
+    encoder_timestamp = 0;
+    prev_encoder_counter = 0;
+  }
 };
 
 //================================================================================
 //                          ZMIENNE GLOBALNE
 //================================================================================
 
-Motor right_motor;
-Motor left_motor;
+Motor right_motor = Motor(MOTOR_RIGHT_DIR_1, MOTOR_RIGHT_DIR_2, MOTOR_RIGHT_PWM, MOTOR_RIGHT_ENC_FIRST, MOTOR_RIGHT_ENC_SECOND);
+Motor left_motor = Motor(MOTOR_LEFT_DIR_1, MOTOR_LEFT_DIR_2, MOTOR_LEFT_PWM, MOTOR_LEFT_ENC_FIRST, MOTOR_LEFT_ENC_SECOND);
 void assign_motors() {
   right_motor.another_motor = &left_motor;
   left_motor.another_motor = &right_motor;
@@ -207,48 +204,48 @@ bool interrupt_has_recently_occured = false;
 
 void setup()
 {
-    // Port do komunikacji z Raspberry PI
-    Serial.begin(BAUDRATE);
+  // Port do komunikacji z Raspberry PI
+  Serial.begin(BAUDRATE);
 
-    // Bumpery
-    pinMode(BUMPERS, INPUT_PULLUP);
+  // Bumpery
+  pinMode(BUMPERS, INPUT_PULLUP);
 
-    attach_interrupts();
+  attach_interrupts();
 
-    // Ledy
-    pinMode(LED_RED, OUTPUT);
-    pinMode(LED_BLUE, OUTPUT);
-    pinMode(LED_GREEN, OUTPUT);
+  // Ledy
+  pinMode(LED_RED, OUTPUT);
+  pinMode(LED_BLUE, OUTPUT);
+  pinMode(LED_GREEN, OUTPUT);
 
-    right_motor = Motor(MOTOR_RIGHT_DIR_1, MOTOR_RIGHT_DIR_2, MOTOR_RIGHT_PWM, MOTOR_RIGHT_ENC_FIRST, MOTOR_RIGHT_ENC_SECOND);
-    left_motor = Motor(MOTOR_LEFT_DIR_1, MOTOR_LEFT_DIR_2, MOTOR_LEFT_PWM, MOTOR_LEFT_ENC_FIRST, MOTOR_LEFT_ENC_SECOND);
+  //    right_motor = Motor(MOTOR_RIGHT_DIR_1, MOTOR_RIGHT_DIR_2, MOTOR_RIGHT_PWM, MOTOR_RIGHT_ENC_FIRST, MOTOR_RIGHT_ENC_SECOND);
+  //    left_motor = Motor(MOTOR_LEFT_DIR_1, MOTOR_LEFT_DIR_2, MOTOR_LEFT_PWM, MOTOR_LEFT_ENC_FIRST, MOTOR_LEFT_ENC_SECOND);
 
-    assign_motors();
+  assign_motors();
 }
 
 void attach_interrupts()
 {
-    attachInterrupt(digitalPinToInterrupt(BUMPERS), bumpers_interrupt, FALLING);
-    attachInterrupt(digitalPinToInterrupt(left_motor.enc_pin_first), left_motor_interrupt, RISING);
-    attachInterrupt(digitalPinToInterrupt(right_motor.enc_pin_first), right_motor_interrupt, FALLING);
+  attachInterrupt(digitalPinToInterrupt(BUMPERS), bumpers_interrupt, FALLING);
+  attachInterrupt(digitalPinToInterrupt(left_motor.enc_pin_first), left_motor_interrupt, RISING);
+  attachInterrupt(digitalPinToInterrupt(right_motor.enc_pin_first), right_motor_interrupt, FALLING);
 }
 
 void bumpers_interrupt()
 {
-    interrupt_has_recently_occured = true;
-    right_motor.fast_stop_forward();
-    left_motor.fast_stop_forward();
-    highlight(LED_RED);
+  interrupt_has_recently_occured = true;
+  right_motor.fast_stop_forward();
+  left_motor.fast_stop_forward();
+  highlight(LED_RED);
 }
 
 void left_motor_interrupt()
 {
-    left_motor.interrupt();
+  left_motor.interrupt();
 }
 
 void right_motor_interrupt()
 {
-    right_motor.interrupt();
+  right_motor.interrupt();
 }
 
 //================================================================================
@@ -257,39 +254,47 @@ void right_motor_interrupt()
 
 void loop()
 {
-    if (Serial.available() >= INPUT_SIZE)
-    {
-        load_received_data();
+  if (Serial.available() >= INPUT_SIZE)
+  {
+    load_received_data();
 
-        // Wyslij na port szeregowy Serial info o otrzymanej fladze i wartosci
-        if (DEBUG) {
-            print_flag_info_serial();
-        }
-        // Do sterowania nalezy korzystac ze zmiennych 'control' oraz 'read_value'
-        switch (control)
-        {
-            case 'v': // ustawienie mocy silnikow
-                set_velocity();
-                break;
-            case 'm': // ustaw silniki na jazde do przodu
-                set_motors_direction(true);
-                move();
-                break;
-            case 'b': // ustaw silniki na jazde do tylu
-                set_motors_direction(false);
-                move();
-                break;
-            case 'p': // wartosc odwrocenia silnikow
-                turn_motors();
-
-            case 'f': // ustaw silniki na jazde prostO
-                set_motors_direction(true);
-                break;
-            case 's': // gwaltowne zatrzymanie silnikow
-                stop_motors(true);
-                break;
-        }
+    // Wyslij na port szeregowy Serial info o otrzymanej fladze i wartosci
+    if (DEBUG) {
+      print_flag_info_serial();
     }
+    // Do sterowania nalezy korzystac ze zmiennych 'control' oraz 'read_value'
+    switch (control)
+    {
+      case 'v': // ustawienie mocy silnikow
+        set_velocity();
+        break;
+      case 'm': // ustaw silniki na jazde do przodu
+        set_motors_direction(true);
+        move();
+        break;
+      case 'b': // ustaw silniki na jazde do tylu
+        set_motors_direction(false);
+        move();
+        break;
+      case 'l': // wartosc odwrocenia silnikow
+        left_motor.forward();
+        right_motor.backward();
+        move();
+        break;
+      case 'r': // wartosc odwrocenia silnikow
+        left_motor.backward();
+        right_motor.forward();
+        move();
+        break;
+      case 'f': // ustaw silniki na jazde prostO
+        set_motors_direction(true);
+        break;
+      case 's': // gwaltowne zatrzymanie silnikow
+        stop_motors(true);
+        break;
+    }
+  }
+  measure_motors_velocity();
 }
 
 //================================================================================
@@ -299,113 +304,126 @@ void loop()
 void set_velocity()
 {
 
-    //  for(int i=0; i <= pwm; i+=20) {
-    //    analogWrite(pwm_pin, i);
-    //  }
-    //set_motors_direction(true);
-    //left_motor.pwm(read_value);
-    //right_motor.pwm(read_value);
-    //pwm_motors = read_value;
-    pwm_motors = (unsigned char)read_value;
+  //  for(int i=0; i <= pwm; i+=20) {
+  //    analogWrite(pwm_pin, i);
+  //  }
+  //set_motors_direction(true);
+  //left_motor.pwm(read_value);
+  //right_motor.pwm(read_value);
+  //pwm_motors = read_value;
+  pwm_motors = (unsigned char)read_value;
 }
 
 void move()
 {
-    highlight(LED_BLUE);
-    unsigned int distance = ((unsigned int)read_value)*10;
-    reset_encoder_counters();
-    long long mill = millis();
-    long long last_mil = 0;
-    unsigned char pwm = 5;
-    while ( bumpers_not_active() && !interrupt_has_recently_occured && (left_motor.encoder_counter * INTERRUPTS_TO_MM < distance || right_motor.encoder_counter * INTERRUPTS_TO_MM < distance))
-    {
-        mill = millis();
-        if (((mill-last_mil) > 10) && pwm < pwm_motors) {
-            left_motor.pwm(pwm);
-            right_motor.pwm(pwm);
-            pwm += 1;
-            last_mil = mill;
-        }
+  highlight(LED_BLUE);
+  unsigned int distance = ((unsigned int)read_value) * 10;
+  reset_encoder_counters();
+  long long mill = millis();
+  long long last_mil = 0;
+  unsigned char pwm = 5;
+  interrupt_has_recently_occured = false;
+  while ( bumpers_not_active() && !interrupt_has_recently_occured && (left_motor.encoder_counter * INTERRUPTS_TO_MM < distance || right_motor.encoder_counter * INTERRUPTS_TO_MM < distance))
+  {
+    mill = millis();
+    if (((mill - last_mil) > 10) && pwm < pwm_motors) {
+      left_motor.pwm(pwm);
+      right_motor.pwm(pwm);
+      pwm += 1;
+      last_mil = mill;
     }
-    if (!interrupt_has_recently_occured && bumpers_not_active()) {
-      stop_motors(false);
-      highlight(LED_GREEN);
-      Serial.println("m0");
-    } else {
-      highlight(LED_RED);
-      Serial.println("m1");
-    }
-    interrupt_has_recently_occured = false;
+    measure_motors_velocity();
+  }
+  if (!interrupt_has_recently_occured && bumpers_not_active()) {
+    stop_motors(false);
+    highlight(LED_GREEN);
+    Serial.println("m0");
+  } else {
+    highlight(LED_RED);
+    Serial.println("m1");
+  }
 }
 
 void turn_motors()
 {
-    if (read_value < 100) // lewo
-    {
-        left_motor.pwm(pwm_motors * read_value / 100);
-        right_motor.pwm(pwm_motors);
-    }
-    else // prawo
-    {
-        right_motor.pwm((pwm_motors * (100 - (read_value - 100))) / 100);
-        left_motor.pwm(pwm_motors);
-    }
+  if (read_value < 100) // lewo
+  {
+    left_motor.pwm(pwm_motors * read_value / 100);
+    right_motor.pwm(pwm_motors);
+  }
+  else // prawo
+  {
+    right_motor.pwm((pwm_motors * (100 - (read_value - 100))) / 100);
+    left_motor.pwm(pwm_motors);
+  }
 }
 
 void set_motors_direction(boolean is_forward)
 {
-    if (is_forward)
-    {
-        left_motor.forward();
-        right_motor.forward();
-    }
-    else
-    {
-        left_motor.backward();
-        right_motor.backward();
-    }
+  if (is_forward)
+  {
+    left_motor.forward();
+    right_motor.forward();
+  }
+  else
+  {
+    left_motor.backward();
+    right_motor.backward();
+  }
 }
 
 void stop_motors(boolean fast_stop)
 {
-    if (fast_stop)
-    {
-        left_motor.fast_stop();
-        right_motor.fast_stop();
-    }
-    else
-    {
-        left_motor.stop();
-        right_motor.stop();
-    }
+  if (fast_stop)
+  {
+    left_motor.fast_stop();
+    right_motor.fast_stop();
+  }
+  else
+  {
+    left_motor.stop();
+    right_motor.stop();
+  }
 }
 
 //================================================================================
 //                          FUNKCJE POMOCNICZE
 //================================================================================
-
+void measure_motors_velocity() {
+  right_motor.measure_velocity();
+  left_motor.measure_velocity();
+  if (DEBUG && (millis() % 300 == 0)) {
+    Serial.print("Motor R: ");
+    Serial.print(right_motor.velocity);
+    Serial.print('\t');
+    Serial.print(left_motor.is_faster_than_another_motor() ? '<' : '>');
+    Serial.print("\tMotor L: ");
+    Serial.print(left_motor.velocity);
+    Serial.print('\n');
+  }
+}
 bool bumpers_not_active() {
   return digitalRead(BUMPERS);
 }
 void print_flag_info_serial()
 {
-    Serial.print("Flag: ");
-    Serial.print(control);
-    Serial.print(" , value: ");
-    Serial.print(read_value);
-    Serial.println();
+  Serial.print("Flag: ");
+  Serial.print(control);
+  Serial.print(" , value: ");
+  Serial.print(read_value);
+  Serial.println();
 }
 
 void highlight(int led) {
-    digitalWrite(LED_RED, LOW);
-    digitalWrite(LED_GREEN, LOW);
-    digitalWrite(LED_BLUE, LOW);
-    digitalWrite(led, HIGH);
+  digitalWrite(LED_RED, LOW);
+  digitalWrite(LED_GREEN, LOW);
+  digitalWrite(LED_BLUE, LOW);
+  digitalWrite(led, HIGH);
 }
 
 void reset_encoder_counters() {
-    left_motor.reset_encoder_counter();
-    right_motor.reset_encoder_counter();
+  left_motor.reset_encoder_counter();
+  right_motor.reset_encoder_counter();
 }
 
 // ==============================================================================
@@ -425,20 +443,20 @@ void reset_encoder_counters() {
 
 void load_received_data()
 {
-    // Odczytuje bajty i laduje je do tablicy bytes_read
-    Serial.readBytes(bytes_read, INPUT_SIZE);
-    control = bytes_read[0];
+  // Odczytuje bajty i laduje je do tablicy bytes_read
+  Serial.readBytes(bytes_read, INPUT_SIZE);
+  control = bytes_read[0];
 
-    load_value();
+  load_value();
 }
 
 // Zaladowanie do inta tablicy z liczba
 void load_value()
 {
-    for (int i = 0; i < INPUT_SIZE - 1; i++)
-    {
-        read_value_chars[i] = bytes_read[i + 1];
-    }
-    read_value_chars[INPUT_SIZE - 1] = '\0';     // dodanie na koncu znaku konca ciagu zeby zrzutowac na inta
-    sscanf(read_value_chars, "%d", &read_value); // czyta tablice znakow inta do zmiennej int korzystajac z adresu
+  for (int i = 0; i < INPUT_SIZE - 1; i++)
+  {
+    read_value_chars[i] = bytes_read[i + 1];
+  }
+  read_value_chars[INPUT_SIZE - 1] = '\0';     // dodanie na koncu znaku konca ciagu zeby zrzutowac na inta
+  sscanf(read_value_chars, "%d", &read_value); // czyta tablice znakow inta do zmiennej int korzystajac z adresu
 }
