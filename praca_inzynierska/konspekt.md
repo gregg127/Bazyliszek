@@ -10,7 +10,6 @@ Robotyczna platforma edukacyjna
 	2. Motywacja
 	
 	`Stworzenie gotowego rozwiązania dla studentów aby mogli pisać wysokopoziome oprogramowanie dla robota, ucząc się przy tym jak sterować takim robotem wykorzystując ROSa`
-	
 ___
 
 2. ROS
@@ -30,22 +29,28 @@ ___
 	
 	`opis węzłów, tematów i wiadomości`
 ___
+
 3. Protokół komunikacji pomiędzy komputerem a robotem
 
 `opis protokołu jaki jest dostępny na Arduino jak działa komunikacja pomiędzy arduino a komputerem (UART)`
 ___
+
 4. Sterowanie niskopoziomowe
 	1. regulacja PID
 	
 	2. oprogramowanie robota (odczytywanie z enkoderów, przerwania itp)
 ___
+
 5. Opis robota
 	1. Podwozie, rama, elementy strukturalne mechaniczne, opis tego-
 	2. enkodery wykorzysujace efekt Halla
 ___
+
 6. Podsumowanie
 ___
+
 Bibliografia
 ___
+
 Załączniki
 płyta z obrazem z ROSem, płyta z programem do arduino???
