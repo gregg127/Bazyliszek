@@ -6,7 +6,7 @@
 //==============================================================================
 //                          KONFIGURACJA (STAŁE)
 //==============================================================================
-#define DEBUG 0
+#define DEBUG 1
 
 #define INPUT_SIZE 4
 #define MOTOR_LEFT_DIR_1 22
@@ -45,6 +45,8 @@
 
 struct Motor
 {
+    //Wskaźnik na drugi silnik
+    Motor* another_motor;
     //Numer wejscia/wyjscia mikrokontrolera sterujacego polaryzacja
     int dir_pin_1;
     //Numer wejscia/wyjscia mikrokontrolera sterujacego polaryzacja
@@ -60,8 +62,16 @@ struct Motor
     int enc_pin_second;
     //Licznik zmian stanu enkodera
     unsigned long encoder_counter;
+    //Poprzedni przejechany dystans
+    unsigned long prev_encoder_counter;
     //Czas ostatniej zmiany enkodera
     unsigned long encoder_timestamp;
+    //Aktualna predkosc
+    float velocity;
+
+    Motor() {
+      
+    }
 
     //Konstruktor z ustawieniem wejsc/wyjsc dla silnika
     Motor(int _dir_pin_1, int _dir_pin_2, int _pwm_pin, int _enc_pin_first, int _enc_pin_second)
@@ -77,6 +87,11 @@ struct Motor
         pinMode(pwm_pin, OUTPUT);
         pinMode(enc_pin_first, INPUT);
         pinMode(enc_pin_second, INPUT);
+
+        reset_encoder_counter();
+        encoder_timestamp = 0;
+        velocity = 0;
+        prev_encoder_counter = 0;
     }
 
     //Tryb jazdy do przodu
@@ -85,6 +100,8 @@ struct Motor
         digitalWrite(dir_pin_1, HIGH);
         digitalWrite(dir_pin_2, LOW);
         is_forward = true;
+        encoder_timestamp = 0;
+        prev_encoder_counter = 0;
     }
 
     //Tryb jazdy do tylu
@@ -125,15 +142,32 @@ struct Motor
 
     void interrupt()
     {
-        if (DEBUG && encoder_counter % INTERRUPT_DEBUG_COUNTER_INTERVAL == 0) {
+      unsigned long current_millis = 0;
+       
+        encoder_counter++;
+        current_millis = millis();
+        if ((current_millis - encoder_timestamp) > 1000) {
+          velocity = ((float)(encoder_counter - prev_encoder_counter))*INTERRUPTS_TO_MM / (current_millis - encoder_timestamp);
+          encoder_timestamp = current_millis;
+          prev_encoder_counter = encoder_counter;
+          if (DEBUG) {
             double mm = ((double)encoder_counter) * INTERRUPTS_TO_MM;
             Serial.print("Interrupt: ");
             Serial.print(enc_pin_first);
-            Serial.print(", milimeters driven: ");
+            Serial.print("\t milimeters driven: ");
             // Wyswietlenie przejechanego dystansu w milimetrach
-            Serial.println(mm);
+            Serial.print(mm);
+            Serial.print("\t velocity: ");
+            Serial.print(velocity);
+            Serial.print("\tIs faster than another: ");
+            Serial.println(is_faster_than_another_motor());
+          }
         }
-        encoder_counter++;
+        
+    }
+
+    bool is_faster_than_another_motor() {
+      return velocity > another_motor->velocity;
     }
 
     void reset_encoder_counter()
@@ -146,8 +180,12 @@ struct Motor
 //                          ZMIENNE GLOBALNE
 //================================================================================
 
-Motor right_motor = Motor(MOTOR_RIGHT_DIR_1, MOTOR_RIGHT_DIR_2, MOTOR_RIGHT_PWM, MOTOR_RIGHT_ENC_FIRST, MOTOR_RIGHT_ENC_SECOND);
-Motor left_motor = Motor(MOTOR_LEFT_DIR_1, MOTOR_LEFT_DIR_2, MOTOR_LEFT_PWM, MOTOR_LEFT_ENC_FIRST, MOTOR_LEFT_ENC_SECOND);
+Motor right_motor;
+Motor left_motor;
+void assign_motors() {
+  right_motor.another_motor = &left_motor;
+  left_motor.another_motor = &right_motor;
+}
 
 // Zmienne obslugujace komunikacje na porcie szeregowym
 char bytes_read[INPUT_SIZE];            // tablica 4 bajtow do odczytywania danych
@@ -181,6 +219,11 @@ void setup()
     pinMode(LED_RED, OUTPUT);
     pinMode(LED_BLUE, OUTPUT);
     pinMode(LED_GREEN, OUTPUT);
+
+    right_motor = Motor(MOTOR_RIGHT_DIR_1, MOTOR_RIGHT_DIR_2, MOTOR_RIGHT_PWM, MOTOR_RIGHT_ENC_FIRST, MOTOR_RIGHT_ENC_SECOND);
+    left_motor = Motor(MOTOR_LEFT_DIR_1, MOTOR_LEFT_DIR_2, MOTOR_LEFT_PWM, MOTOR_LEFT_ENC_FIRST, MOTOR_LEFT_ENC_SECOND);
+
+    assign_motors();
 }
 
 void attach_interrupts()
