@@ -6,7 +6,7 @@
 //==============================================================================
 //                          KONFIGURACJA (STAŁE)
 //==============================================================================
-#define DEBUG 1
+#define DEBUG 0
 
 #define INPUT_SIZE 4
 #define MOTOR_LEFT_DIR_1 22
@@ -35,10 +35,17 @@
 #define LIN_DISPLACEMENT_RATIO INTERRUPTS_TO_MM / 2
 #define THETA_RATIO INTERRUPTS_TO_MM / ROBOT_WIDTH
 #define ODOMETRY_CHECK_INTERVAL 100 // in milisceonds
-#define VELOCITY_MEASURE_INTERVAL 200 //in miliseconds
+#define VELOCITY_MEASURE_INTERVAL 100 //in miliseconds
 
 // Parametry komunikacji szeregowej
 #define BAUDRATE 250000
+#define READ_VALUE_TO_DISTANCE_RATIO 10
+
+
+//konfiguracja PIDa
+#define PROPORTIONAL_PARAM 0.0
+#define INTEGRAL_PARAM 0.0
+#define DERIVATIVE_PARAM 0.0
 
 //================================================================================
 //                          MOTOR STRUKTURA
@@ -68,7 +75,7 @@ struct Motor
   //Czas ostatniej zmiany enkodera
   unsigned long encoder_timestamp;
   //Aktualna predkosc
-  float velocity;
+  double velocity;
 
   Motor()
   {
@@ -141,11 +148,11 @@ struct Motor
     analogWrite(pwm_pin, pwm);
   }
 
-  float measure_velocity()
+  double measure_velocity()
   {
     unsigned long current_millis = millis();
     if ((current_millis - encoder_timestamp) > VELOCITY_MEASURE_INTERVAL) {
-      velocity = ((float)(encoder_counter - prev_encoder_counter)) * INTERRUPTS_TO_MM / (current_millis - encoder_timestamp);
+      velocity = ((double)(encoder_counter - prev_encoder_counter)) * INTERRUPTS_TO_MM / (current_millis - encoder_timestamp);
       encoder_timestamp = current_millis;
       prev_encoder_counter = encoder_counter;
     }
@@ -251,7 +258,7 @@ void right_motor_interrupt()
 //================================================================================
 //                          GLOWNA PETLA PROGRAMU
 //================================================================================
-
+bool mm = true;
 void loop()
 {
   if (Serial.available() >= INPUT_SIZE)
@@ -295,6 +302,12 @@ void loop()
     }
   }
   measure_motors_velocity();
+  set_motors_direction(true);
+  if(mm){
+    move();
+    mm=false;
+    stop_motors(false);
+  }
 }
 
 //================================================================================
@@ -313,9 +326,50 @@ void set_velocity()
   //pwm_motors = read_value;
   pwm_motors = (unsigned char)read_value;
 }
+void move() {
+  interrupt_has_recently_occured = false;
+  if (!bumpers_not_active())
+  {
+    return;
+  }
+  highlight(LED_BLUE);
+  reset_encoder_counters();
+  double error_sum = 0;
+  double previous_error = 0;
+  //unsigned int distance = ((int)read_value) * READ_VALUE_TO_DISTANCE_RATIO;
+  int a = 0;
+  long long prev_millis = millis();
+  for (a; a<255; a++) {
+    double normalized_l = left_motor.velocity*20;
+    double normalized_r = left_motor.velocity*20;
+    double normalized_pwm = ((double)a)*(18.0/255.0);
+    unsigned char left_pwm = normalized_l>normalized_pwm?(unsigned char)(((normalized_pwm-(normalized_l-normalized_pwm))/18.0)*255):a;
+    unsigned char right_pwm = normalized_r>normalized_pwm?(unsigned char)(((normalized_pwm-(normalized_r-normalized_pwm))/18.0)*255):a;
+    left_motor.pwm(left_pwm);
+    right_motor.pwm(right_pwm);
+    
+//    Serial.print(millis());
+//    Serial.print('\t');
+    Serial.print(((double)left_pwm)*(18.0/255.0));
+    Serial.print('\t');
+    Serial.print(((double)right_pwm)*(18.0/255.0));
+    Serial.print('\t');
+    Serial.print((int)normalized_l);
+    Serial.print('\t');
+    Serial.print((int)normalized_r);
+    Serial.println();
+    while (prev_millis + 66 > millis())
+      measure_motors_velocity();
+    prev_millis = millis();
+  }
 
-void move()
+
+}
+void old_v()
 {
+  double error_sum = 0;
+  double prev_error = 0;
+  double error = 0;
   highlight(LED_BLUE);
   unsigned int distance = ((unsigned int)read_value) * 10;
   reset_encoder_counters();
@@ -323,16 +377,48 @@ void move()
   long long last_mil = 0;
   unsigned char pwm = 5;
   interrupt_has_recently_occured = false;
-  while ( bumpers_not_active() && !interrupt_has_recently_occured && (left_motor.encoder_counter * INTERRUPTS_TO_MM < distance || right_motor.encoder_counter * INTERRUPTS_TO_MM < distance))
+  while ( bumpers_not_active() && !interrupt_has_recently_occured)
   {
+    // softstart
     mill = millis();
-    if (((mill - last_mil) > 10) && pwm < pwm_motors) {
-      left_motor.pwm(pwm);
-      right_motor.pwm(pwm);
-      pwm += 1;
+    if (((mill - last_mil) > 10))
+    {
+      if (pwm < pwm_motors) {
+        right_motor.pwm(pwm);
+        left_motor.pwm(pwm - 12 > 0 ? pwm - 12 : pwm);
+        pwm += 1;
+      } else if ((pwm == pwm_motors))
+        //        ^^^   (left_motor.velocity > 0) && left_motor.velocity - right_motor.velocity != 0 &&
+      {
+        error = left_motor.velocity - right_motor.velocity;
+        //        double en1 = (right_motor.velocity / left_motor.velocity) * 255;
+        //        double a = en1 / error;
+        //double prop_pwm = (6038 * (left_motor.velocity - right_motor.velocity));
+        double pwm_unranged = 603 * error - error_sum * 30 + (error - prev_error) * 2;
+        int pwm_ranged = 255 - (int)pwm_unranged;
+        if (pwm_unranged > 255) {
+          pwm_ranged = 255;
+        } else if (pwm_unranged < 0) {
+          pwm_ranged = 0;
+        }
+
+        left_motor.pwm(pwm_ranged);
+        Serial.print(pwm_ranged);
+        Serial.print('\t');
+        Serial.print(pwm_unranged);
+        Serial.print('\t');
+        Serial.print(left_motor.velocity);
+        Serial.print('\t');
+        Serial.println(right_motor.velocity);
+      }
       last_mil = mill;
+      measure_motors_velocity();
+      error_sum += error;
+      prev_error = error;
     }
-    measure_motors_velocity();
+
+
+
   }
   if (!interrupt_has_recently_occured && bumpers_not_active()) {
     stop_motors(false);
@@ -389,6 +475,10 @@ void stop_motors(boolean fast_stop)
 //================================================================================
 //                          FUNKCJE POMOCNICZE
 //================================================================================
+boolean has_reached ( unsigned int distance )
+{
+  return (left_motor.encoder_counter * INTERRUPTS_TO_MM < distance && right_motor.encoder_counter * INTERRUPTS_TO_MM < distance);
+}
 void measure_motors_velocity() {
   right_motor.measure_velocity();
   left_motor.measure_velocity();
@@ -426,6 +516,8 @@ void reset_encoder_counters() {
   right_motor.reset_encoder_counter();
 }
 
+int pwm (int error, int prev_error) {
+}
 // ==============================================================================
 //                         PROTOKOL KOMUNIKACJI
 // ==============================================================================
