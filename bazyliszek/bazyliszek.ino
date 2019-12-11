@@ -303,9 +303,9 @@ void loop()
   }
   measure_motors_velocity();
   set_motors_direction(true);
-  if(mm){
+  if (mm) {
     move();
-    mm=false;
+    mm = false;
     stop_motors(false);
   }
 }
@@ -339,27 +339,54 @@ void move() {
   //unsigned int distance = ((int)read_value) * READ_VALUE_TO_DISTANCE_RATIO;
   int a = 0;
   long long prev_millis = millis();
-  for (a; a<255; a++) {
-    double normalized_l = left_motor.velocity*20;
-    double normalized_r = left_motor.velocity*20;
-    double normalized_pwm = ((double)a)*(18.0/255.0);
-    unsigned char left_pwm = normalized_l>normalized_pwm?(unsigned char)(((normalized_pwm-(normalized_l-normalized_pwm))/18.0)*255):a;
-    unsigned char right_pwm = normalized_r>normalized_pwm?(unsigned char)(((normalized_pwm-(normalized_r-normalized_pwm))/18.0)*255):a;
+  double error_left = 0.0;
+  double error_right = 0.0;
+  double prev_error_left = 0.0;
+  double prev_error_right = 0.0;
+  double proportional = 255 / 18.0;
+  double derrivative = 2.35;
+  double integral = 0.5;
+  double sum_error_left = 0.0;
+  double sum_error_right = 0.0;
+  for (a; a < 255; a++) {
+    double normalized_l = left_motor.velocity * 20;
+    double normalized_r = right_motor.velocity * 20;
+    double normalized_pwm = ((double)a) * (18.0 / 255.0);
+    error_left = (normalized_pwm - (normalized_l));
+    error_right = (normalized_pwm - (normalized_r));
+    sum_error_left += error_left;
+    sum_error_right += error_right;
+    unsigned char left_pwm = true || normalized_l > normalized_pwm ? (unsigned char)((abs(error_left) * proportional)+(prev_error_left - error_left)*derrivative+sum_error_left*integral) : a;
+    unsigned char right_pwm = true || normalized_r > normalized_pwm ? (unsigned char)((abs(error_right) * proportional)+(prev_error_right - error_right)*derrivative+sum_error_right*integral) : a;
     left_motor.pwm(left_pwm);
     right_motor.pwm(right_pwm);
-    
-//    Serial.print(millis());
-//    Serial.print('\t');
-    Serial.print(((double)left_pwm)*(18.0/255.0));
+    prev_error_left = error_left;
+    prev_error_right = error_right;
+
+    //    Serial.print(millis());
+    //    Serial.print('\t');
+    Serial.print(((double)left_pwm) * (18.0 / 255.0));
     Serial.print('\t');
-    Serial.print(((double)right_pwm)*(18.0/255.0));
+    Serial.print(((double)right_pwm) * (18.0 / 255.0));
     Serial.print('\t');
-    Serial.print((int)normalized_l);
+    Serial.print(normalized_l);
     Serial.print('\t');
-    Serial.print((int)normalized_r);
+    Serial.print(normalized_r);
     Serial.println();
     while (prev_millis + 66 > millis())
+    {
       measure_motors_velocity();
+//      error_left = (normalized_pwm - (normalized_l - normalized_pwm));
+//    error_right = (normalized_pwm - (normalized_r - normalized_pwm));
+//    sum_error_left += error_left;
+//    sum_error_right += error_right;
+//    left_pwm = true || normalized_l > normalized_pwm ? (unsigned char)((error_left * proportional)+(prev_error_left - error_left)*derrivative+sum_error_left*integral) : a;
+//    right_pwm = true || normalized_r > normalized_pwm ? (unsigned char)((error_right * proportional)+(prev_error_right - error_right)*derrivative+sum_error_right*integral) : a;
+//    left_motor.pwm(left_pwm);
+//    right_motor.pwm(right_pwm);
+//    prev_error_left = error_left;
+//    prev_error_right = error_right;
+    }
     prev_millis = millis();
   }
 
