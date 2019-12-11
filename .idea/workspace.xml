@@ -3,15 +3,20 @@
   <component name="CMakeRunConfigurationManager" shouldGenerate="true" shouldDeleteObsolete="true">
     <generated />
   </component>
-  <component name="CMakeSettings">
+  <component name="CMakeSettings" AUTO_RELOAD="true">
     <configurations>
       <configuration PROFILE_NAME="Debug" CONFIG_NAME="Debug" />
     </configurations>
   </component>
   <component name="ChangeListManager">
     <list default="true" id="2d468ab0-aa70-40ca-8996-2b95a747733c" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/serialmonitor_settings.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/Bazyliszek.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/Bazyliszek.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/bazyliszek/bazyliszek.ino" beforeDir="false" afterPath="$PROJECT_DIR$/bazyliszek/bazyliszek.ino" afterDir="false" />
     </list>
+    <ignored path="$PROJECT_DIR$/bazyliszek/cmake-build-debug/" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -22,19 +27,23 @@
     <option name="formatViaClangd" value="false" />
   </component>
   <component name="FileEditorManager">
-    <leaf>
+    <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/bazyliszek/bazyliszek.ino">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="430">
-              <caret line="279" column="35" lean-forward="true" selection-end-line="400" />
+            <state relative-caret-position="-1225">
+              <caret line="361" column="21" lean-forward="true" selection-start-line="361" selection-start-column="21" selection-end-line="361" selection-end-column="21" />
             </state>
           </provider>
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/bazyliszek/protocol.txt">
-          <provider selected="true" editor-type-id="text-editor" />
+        <entry file="file://$PROJECT_DIR$/bazyliszek/CMakeLists.txt">
+          <provider selected="true" editor-type-id="text-editor">
+            <state>
+              <caret column="37" selection-start-column="37" selection-end-column="37" />
+            </state>
+          </provider>
         </entry>
       </file>
     </leaf>
@@ -44,6 +53,7 @@
       <find>set_velocity</find>
       <find>int velocity</find>
       <find>veloc</find>
+      <find>fast_stop</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -53,22 +63,12 @@
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
       <list>
+        <option value="$PROJECT_DIR$/bazyliszek/CMakeLists.txt" />
         <option value="$PROJECT_DIR$/bazyliszek/bazyliszek.ino" />
       </list>
     </option>
   </component>
   <component name="OCFindUsagesOptions" text="true" ivars="false" properties="true" derivedClasses="false" />
-  <component name="ProjectConfigurationFiles">
-    <option name="files">
-      <list>
-        <option value="$PROJECT_DIR$/.idea/Bazyliszek.iml" />
-        <option value="$PROJECT_DIR$/.idea/misc.xml" />
-        <option value="$PROJECT_DIR$/.idea/vcs.xml" />
-        <option value="$PROJECT_DIR$/.idea/modules.xml" />
-        <option value="$PROJECT_DIR$/.idea/arduino-project-settings.xml" />
-      </list>
-    </option>
-  </component>
   <component name="ProjectFrameBounds" extendedState="6">
     <option name="x" value="-8" />
     <option name="y" value="-8" />
@@ -80,33 +80,15 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
+      <pane id="ProjectPane" />
       <pane id="Scope" />
-      <pane id="ProjectPane">
-        <subPane>
-          <expand>
-            <path>
-              <item name="Bazyliszek" type="b2602c69:ProjectViewProjectNode" />
-              <item name="Bazyliszek" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="Bazyliszek" type="b2602c69:ProjectViewProjectNode" />
-              <item name="Bazyliszek" type="462c0819:PsiDirectoryNode" />
-              <item name="android" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="Bazyliszek" type="b2602c69:ProjectViewProjectNode" />
-              <item name="Bazyliszek" type="462c0819:PsiDirectoryNode" />
-              <item name="bazyliszek" type="462c0819:PsiDirectoryNode" />
-            </path>
-          </expand>
-          <select />
-        </subPane>
-      </pane>
     </panes>
   </component>
   <component name="PropertiesComponent">
     <property name="ASKED_SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
+    <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/bazyliszek/CMakeLists.txt" />
     <property name="node.js.detected.package.eslint" value="true" />
     <property name="node.js.detected.package.tslint" value="true" />
     <property name="node.js.path.for.package.eslint" value="project" />
@@ -141,11 +123,14 @@
       <updated>1574327458504</updated>
       <workItem from="1574327464359" duration="105000" />
       <workItem from="1574327627739" duration="4073000" />
+      <workItem from="1576081950978" duration="528000" />
+      <workItem from="1576082513639" duration="127000" />
+      <workItem from="1576082645887" duration="811000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="4178000" />
+    <option name="totallyTimeSpent" value="5644000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -157,14 +142,12 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="-6" y="1" width="1382" height="744" extended-state="6" />
+    <frame x="-8" y="-8" width="1382" height="744" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.16414523" />
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.1709531" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
-      <window_info anchor="bottom" id="REST Client" weight="0.5139116" />
-      <window_info anchor="bottom" id="Arduino Support" weight="0.3289689" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
       <window_info anchor="bottom" id="Run" order="2" />
@@ -173,9 +156,13 @@
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="bottom" id="TODO" order="6" weight="0.3289689" />
       <window_info anchor="bottom" id="Database Changes" order="7" />
-      <window_info active="true" anchor="bottom" id="Version Control" order="8" visible="true" weight="0.049099836" />
+      <window_info anchor="bottom" id="Version Control" order="8" weight="0.049099836" />
       <window_info anchor="bottom" id="Terminal" order="9" />
       <window_info anchor="bottom" id="Event Log" order="10" side_tool="true" />
+      <window_info anchor="bottom" id="Arduino Support" order="11" weight="0.3289689" />
+      <window_info anchor="bottom" id="REST Client" order="12" weight="0.5139116" />
+      <window_info active="true" anchor="bottom" id="CMake" order="13" visible="true" weight="0.12274959" />
+      <window_info anchor="bottom" id="Serial Monitor" order="14" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
@@ -214,10 +201,17 @@
     <entry file="file://$PROJECT_DIR$/bazyliszek/protocol.txt">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
+    <entry file="file://$PROJECT_DIR$/bazyliszek/CMakeLists.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state>
+          <caret column="37" selection-start-column="37" selection-end-column="37" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/bazyliszek/bazyliszek.ino">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="430">
-          <caret line="279" column="35" lean-forward="true" selection-end-line="400" />
+        <state relative-caret-position="-1225">
+          <caret line="361" column="21" lean-forward="true" selection-start-line="361" selection-start-column="21" selection-end-line="361" selection-end-column="21" />
         </state>
       </provider>
     </entry>

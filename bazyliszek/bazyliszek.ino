@@ -76,6 +76,8 @@ struct Motor
   unsigned long encoder_timestamp;
   //Aktualna predkosc
   double velocity;
+  //poprzedni pwm
+  unsigned char prev_pwm;
 
   Motor()
   {
@@ -100,6 +102,7 @@ struct Motor
     encoder_timestamp = 0;
     velocity = 0;
     prev_encoder_counter = 0;
+    prev_pwm = 0;
   }
 
   //Tryb jazdy do przodu
@@ -143,9 +146,17 @@ struct Motor
   }
 
   //Ustawienie mocy
-  void pwm(int pwm)
+  unsigned char pwm(int _pwm)
   {
-    analogWrite(pwm_pin, pwm);
+    if (_pwm > 255) {
+      return 255;
+    }
+    if ((abs(_pwm - prev_pwm) > 25)&&(_pwm != 0)) {
+      return abs(_pwm - prev_pwm);
+    } else {
+      prev_pwm = (unsigned char)_pwm;
+      analogWrite(pwm_pin, _pwm);
+    }
   }
 
   double measure_velocity()
@@ -199,6 +210,7 @@ char read_value_chars[INPUT_SIZE] = ""; // tymczasowa tablica przechowujaca odcz
 
 // Zmienne wspomagajace kontrolowanie silnikow robota
 unsigned char pwm_motors = 255;
+unsigned char prev_pwm_motors = 0;
 // Zmienna informująca, że wystąpiło zdarzenie bumpera, a nie zostało jeszcze odczytane przez funkcję ruchu
 bool interrupt_has_recently_occured = false;
 
@@ -240,8 +252,8 @@ void attach_interrupts()
 void bumpers_interrupt()
 {
   interrupt_has_recently_occured = true;
-  right_motor.fast_stop_forward();
-  left_motor.fast_stop_forward();
+  right_motor.stop();
+  left_motor.stop();
   highlight(LED_RED);
 }
 
@@ -258,7 +270,6 @@ void right_motor_interrupt()
 //================================================================================
 //                          GLOWNA PETLA PROGRAMU
 //================================================================================
-bool mm = true;
 void loop()
 {
   if (Serial.available() >= INPUT_SIZE)
@@ -302,12 +313,6 @@ void loop()
     }
   }
   measure_motors_velocity();
-  set_motors_direction(true);
-  if (mm) {
-    move();
-    mm = false;
-    stop_motors(false);
-  }
 }
 
 //================================================================================
@@ -316,14 +321,6 @@ void loop()
 
 void set_velocity()
 {
-
-  //  for(int i=0; i <= pwm; i+=20) {
-  //    analogWrite(pwm_pin, i);
-  //  }
-  //set_motors_direction(true);
-  //left_motor.pwm(read_value);
-  //right_motor.pwm(read_value);
-  //pwm_motors = read_value;
   pwm_motors = (unsigned char)read_value;
 }
 void move() {
@@ -337,7 +334,9 @@ void move() {
   double error_sum = 0;
   double previous_error = 0;
   //unsigned int distance = ((int)read_value) * READ_VALUE_TO_DISTANCE_RATIO;
-  int a = 150;
+  int a = pwm_motors;
+  int c = prev_pwm_motors;
+  int to_drive = read_value * 10;
   int b = 50;
   long long prev_millis = millis();
   double error_left = 0.0;
@@ -351,16 +350,19 @@ void move() {
   double sum_error_right = 0.0;
   unsigned int left_pwm = 0;
   unsigned int right_pwm = 0;
-  for (b; b < 255; b++) {
+  while ((left_motor.encoder_counter < to_drive && right_motor.encoder_counter < to_drive) && (bumpers_not_active() && !interrupt_has_recently_occured)) {
+    if (a > c) {
+      c+=5;
+    }
     double normalized_l = left_motor.velocity * 20;
     double normalized_r = right_motor.velocity * 20;
-    double normalized_pwm = ((double)a) * (18.0 / 255.0);
+    double normalized_pwm = ((double)c) * (18.0 / 255.0);
     error_left = (normalized_pwm - (normalized_l));
     error_right = (normalized_pwm - (normalized_r));
     sum_error_left += error_left;
     sum_error_right += error_right;
-    left_pwm = true || normalized_l > normalized_pwm ? (unsigned int)((abs(error_left) * proportional)+(prev_error_left - error_left)*derrivative+sum_error_left*integral) : a;
-    right_pwm = true || normalized_r > normalized_pwm ? (unsigned int)((abs(error_right) * proportional)+(prev_error_right - error_right)*derrivative+sum_error_right*integral) : a;
+    left_pwm = (unsigned int)((abs(error_left) * proportional)+(prev_error_left - error_left)*derrivative+sum_error_left*integral);
+    right_pwm = (unsigned int)((abs(error_right) * proportional)+(prev_error_right - error_right)*derrivative+sum_error_right*integral);
     left_motor.pwm(left_pwm);
     right_motor.pwm(right_pwm);
     prev_error_left = error_left;
@@ -380,110 +382,24 @@ void move() {
 
     //    Serial.print(millis());
     //    Serial.print('\t');
-    Serial.print(((double)left_pwm) * (18.0 / 255.0));
-    Serial.print('\t');
-    Serial.print(((double)right_pwm) * (18.0 / 255.0));
-    Serial.print('\t');
-    Serial.print(normalized_l);
-    Serial.print('\t');
-    Serial.print(normalized_r);
-    Serial.println();
+    if (DEBUG) {
+      Serial.print(((double)left_pwm) * (18.0 / 255.0));
+      Serial.print('\t');
+      Serial.print(((double)right_pwm) * (18.0 / 255.0));
+      Serial.print('\t');
+      Serial.print(normalized_l);
+      Serial.print('\t');
+      Serial.print(normalized_r);
+      Serial.println(); 
+    }
     while (prev_millis + 66 > millis())
     {
       measure_motors_velocity();
-//      error_left = (normalized_pwm - (normalized_l - normalized_pwm));
-//    error_right = (normalized_pwm - (normalized_r - normalized_pwm));
-//    sum_error_left += error_left;
-//    sum_error_right += error_right;
-//    left_pwm = true || normalized_l > normalized_pwm ? (unsigned char)((error_left * proportional)+(prev_error_left - error_left)*derrivative+sum_error_left*integral) : a;
-//    right_pwm = true || normalized_r > normalized_pwm ? (unsigned char)((error_right * proportional)+(prev_error_right - error_right)*derrivative+sum_error_right*integral) : a;
-//    left_motor.pwm(left_pwm);
-//    right_motor.pwm(right_pwm);
-//    prev_error_left = error_left;
-//    prev_error_right = error_right;
     }
     prev_millis = millis();
   }
-
-
-}
-void old_v()
-{
-  double error_sum = 0;
-  double prev_error = 0;
-  double error = 0;
-  highlight(LED_BLUE);
-  unsigned int distance = ((unsigned int)read_value) * 10;
-  reset_encoder_counters();
-  long long mill = millis();
-  long long last_mil = 0;
-  unsigned char pwm = 5;
-  interrupt_has_recently_occured = false;
-  while ( bumpers_not_active() && !interrupt_has_recently_occured)
-  {
-    // softstart
-    mill = millis();
-    if (((mill - last_mil) > 10))
-    {
-      if (pwm < pwm_motors) {
-        right_motor.pwm(pwm);
-        left_motor.pwm(pwm - 12 > 0 ? pwm - 12 : pwm);
-        pwm += 1;
-      } else if ((pwm == pwm_motors))
-        //        ^^^   (left_motor.velocity > 0) && left_motor.velocity - right_motor.velocity != 0 &&
-      {
-        error = left_motor.velocity - right_motor.velocity;
-        //        double en1 = (right_motor.velocity / left_motor.velocity) * 255;
-        //        double a = en1 / error;
-        //double prop_pwm = (6038 * (left_motor.velocity - right_motor.velocity));
-        double pwm_unranged = 603 * error - error_sum * 30 + (error - prev_error) * 2;
-        int pwm_ranged = 255 - (int)pwm_unranged;
-        if (pwm_unranged > 255) {
-          pwm_ranged = 255;
-        } else if (pwm_unranged < 0) {
-          pwm_ranged = 0;
-        }
-
-        left_motor.pwm(pwm_ranged);
-        Serial.print(pwm_ranged);
-        Serial.print('\t');
-        Serial.print(pwm_unranged);
-        Serial.print('\t');
-        Serial.print(left_motor.velocity);
-        Serial.print('\t');
-        Serial.println(right_motor.velocity);
-      }
-      last_mil = mill;
-      measure_motors_velocity();
-      error_sum += error;
-      prev_error = error;
-    }
-
-
-
-  }
-  if (!interrupt_has_recently_occured && bumpers_not_active()) {
-    stop_motors(false);
-    highlight(LED_GREEN);
-    Serial.println("m0");
-  } else {
-    highlight(LED_RED);
-    Serial.println("m1");
-  }
-}
-
-void turn_motors()
-{
-  if (read_value < 100) // lewo
-  {
-    left_motor.pwm(pwm_motors * read_value / 100);
-    right_motor.pwm(pwm_motors);
-  }
-  else // prawo
-  {
-    right_motor.pwm((pwm_motors * (100 - (read_value - 100))) / 100);
-    left_motor.pwm(pwm_motors);
-  }
+  prev_pwm_motors = 0;
+  stop_motors(false);
 }
 
 void set_motors_direction(boolean is_forward)
