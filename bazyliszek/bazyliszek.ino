@@ -337,18 +337,21 @@ void move() {
   double error_sum = 0;
   double previous_error = 0;
   //unsigned int distance = ((int)read_value) * READ_VALUE_TO_DISTANCE_RATIO;
-  int a = 0;
+  int a = 150;
+  int b = 50;
   long long prev_millis = millis();
   double error_left = 0.0;
   double error_right = 0.0;
   double prev_error_left = 0.0;
   double prev_error_right = 0.0;
-  double proportional = 255 / 18.0;
+  double proportional = 255 / 19.5;
   double derrivative = 2.35;
   double integral = 0.5;
   double sum_error_left = 0.0;
   double sum_error_right = 0.0;
-  for (a; a < 255; a++) {
+  unsigned int left_pwm = 0;
+  unsigned int right_pwm = 0;
+  for (b; b < 255; b++) {
     double normalized_l = left_motor.velocity * 20;
     double normalized_r = right_motor.velocity * 20;
     double normalized_pwm = ((double)a) * (18.0 / 255.0);
@@ -356,12 +359,24 @@ void move() {
     error_right = (normalized_pwm - (normalized_r));
     sum_error_left += error_left;
     sum_error_right += error_right;
-    unsigned char left_pwm = true || normalized_l > normalized_pwm ? (unsigned char)((abs(error_left) * proportional)+(prev_error_left - error_left)*derrivative+sum_error_left*integral) : a;
-    unsigned char right_pwm = true || normalized_r > normalized_pwm ? (unsigned char)((abs(error_right) * proportional)+(prev_error_right - error_right)*derrivative+sum_error_right*integral) : a;
+    left_pwm = true || normalized_l > normalized_pwm ? (unsigned int)((abs(error_left) * proportional)+(prev_error_left - error_left)*derrivative+sum_error_left*integral) : a;
+    right_pwm = true || normalized_r > normalized_pwm ? (unsigned int)((abs(error_right) * proportional)+(prev_error_right - error_right)*derrivative+sum_error_right*integral) : a;
     left_motor.pwm(left_pwm);
     right_motor.pwm(right_pwm);
     prev_error_left = error_left;
     prev_error_right = error_right;
+
+    if (left_pwm > 255) {
+      left_pwm = 255;
+    } else if (left_pwm < 0) {
+      left_pwm = 0;
+    }
+
+    if (right_pwm > 255) {
+      right_pwm = 255;
+    } else if (left_pwm < 0) {
+      right_pwm = 0;
+    }
 
     //    Serial.print(millis());
     //    Serial.print('\t');
