@@ -1,6 +1,4 @@
 #include <math.h>
-#include <SPI.h>
-#include <Wire.h>
 #include <Arduino.h>
 
 //==============================================================================
@@ -31,21 +29,38 @@
 
 // Parametry enkoderow, przekladni i kol
 #define INTERRUPTS_TO_MM 0.615998
-#define ROBOT_WIDTH 295
+#define INTERRUPTS_TO_CM 10*INTERRUPTS_TO_MM
+#define ROBOT_WIDTH 295.0
 #define LIN_DISPLACEMENT_RATIO INTERRUPTS_TO_MM / 2
 #define THETA_RATIO INTERRUPTS_TO_MM / ROBOT_WIDTH
-#define ODOMETRY_CHECK_INTERVAL 100 // in milisceonds
-#define VELOCITY_MEASURE_INTERVAL 100 //in miliseconds
+#define ODOMETRY_CHECK_INTERVAL 100 // w milisekundach
+#define VELOCITY_MEASURE_INTERVAL 100 // w milisekundach
 
 // Parametry komunikacji szeregowej
 #define BAUDRATE 250000
 #define READ_VALUE_TO_DISTANCE_RATIO 10
 
 
-//konfiguracja PIDa
-#define PROPORTIONAL_PARAM 0.0
-#define INTEGRAL_PARAM 0.0
-#define DERIVATIVE_PARAM 0.0
+//konfiguracja PID
+#define PROPORTIONAL 13.0769
+#define INTEGRAL 3
+#define DERIVATIVE 0.8
+
+//komunikaty wykonania komendy
+#define EXECUTION_SUCCESSFUL 0
+#define EXECUTION_ABORTED_INVALID_PARAM 1
+#define EXECUTION_ABORTED_BY_BUMPER_INTERRUPTION 2
+
+//kierunki jazdy robota
+#define LEFT_TURN false
+#define RIGHT_TURN true
+#define FORWARD_DRIVE true
+#define BACKWARD_DRIVE false
+
+//maksymalne wartości przyjomwane przez funckje sterujące
+#define MAX_VELOCITY_PARAM_VALUE 255
+#define MAX_TURN_PARAM_VALUE 360
+
 
 //================================================================================
 //                          MOTOR STRUKTURA
@@ -55,18 +70,18 @@ struct Motor
 {
   //Wskaźnik na drugi silnik
   Motor* another_motor;
-  //Numer wejscia/wyjscia mikrokontrolera sterujacego polaryzacja
+  //Numer pinu mikrokontrolera sterujacego polaryzacja
   int dir_pin_1;
-  //Numer wejscia/wyjscia mikrokontrolera sterujacego polaryzacja
+  //Numer pinu mikrokontrolera sterujacego polaryzacja
   int dir_pin_2;
-  //Numer wejscia/wyjscia mikrokontrolera sterujacego wypelnieniem PWM
+  //Numer pinu mikrokontrolera sterujacego wypelnieniem PWM
   int pwm_pin;
   //Kierunek jazdy
   bool is_forward = true;
 
-  //Numer wejscia/wyjscia mikrokontrolera do odczytu pierwszej wartosci enkodera silnika
+  //Numer pinu mikrokontrolera do odczytu pierwszej wartosci enkodera silnika
   int enc_pin_first;
-  //Numer wejscia/wyjscia mikrokontrolera do odczytu drugiej przesunietej w fazie wartosci enkodera silnika
+  //Numer pinu mikrokontrolera do odczytu drugiej przesunietej w fazie wartosci enkodera silnika
   int enc_pin_second;
   //Licznik zmian stanu enkodera
   unsigned long encoder_counter;
@@ -78,10 +93,6 @@ struct Motor
   double velocity;
   //poprzedni pwm
   unsigned char prev_pwm;
-
-  Motor()
-  {
-  }
 
   //Konstruktor z ustawieniem wejsc/wyjsc dla silnika
   Motor(int _dir_pin_1, int _dir_pin_2, int _pwm_pin, int _enc_pin_first, int _enc_pin_second)
@@ -131,16 +142,16 @@ struct Motor
     digitalWrite(dir_pin_2, LOW);
   }
 
-  void fast_stop_forward()
+  void stop_if_forward()
   {
     if (is_forward)
     {
-      fast_stop();
+      calm_stop();
     }
   }
 
   //Zatrzymanie
-  void stop()
+  void calm_stop()
   {
     analogWrite(pwm_pin, 0);
   }
@@ -149,14 +160,22 @@ struct Motor
   unsigned char pwm(int _pwm)
   {
     if (_pwm > 255) {
-      return 255;
+      _pwm = 255;
+    } else if (_pwm < 0) {
+      _pwm = 0;
     }
-    if ((abs(_pwm - prev_pwm) > 25)&&(_pwm != 0)) {
-      return abs(_pwm - prev_pwm);
-    } else {
-      prev_pwm = (unsigned char)_pwm;
-      analogWrite(pwm_pin, _pwm);
-    }
+    analogWrite(pwm_pin, _pwm);
+//    if (_pwm - prev_pwm > 25) {
+//      prev_pwm = (unsigned char)prev_pwm-25;
+//      analogWrite(pwm_pin, prev_pwm-25);
+//    } else if(prev_pwm - _pwm > 25) {
+//      prev_pwm = (unsigned char)prev_pwm+25;
+//      analogWrite(pwm_pin, prev_pwm+25);
+//    } else {
+//      prev_pwm = (unsigned char)_pwm;
+//      analogWrite(pwm_pin, _pwm);
+//    }
+    return 0;
   }
 
   double measure_velocity()
@@ -236,9 +255,6 @@ void setup()
   pinMode(LED_BLUE, OUTPUT);
   pinMode(LED_GREEN, OUTPUT);
 
-  //    right_motor = Motor(MOTOR_RIGHT_DIR_1, MOTOR_RIGHT_DIR_2, MOTOR_RIGHT_PWM, MOTOR_RIGHT_ENC_FIRST, MOTOR_RIGHT_ENC_SECOND);
-  //    left_motor = Motor(MOTOR_LEFT_DIR_1, MOTOR_LEFT_DIR_2, MOTOR_LEFT_PWM, MOTOR_LEFT_ENC_FIRST, MOTOR_LEFT_ENC_SECOND);
-
   assign_motors();
 }
 
@@ -252,8 +268,8 @@ void attach_interrupts()
 void bumpers_interrupt()
 {
   interrupt_has_recently_occured = true;
-  right_motor.stop();
-  left_motor.stop();
+  right_motor.calm_stop();
+  left_motor.calm_stop();
   highlight(LED_RED);
 }
 
@@ -287,29 +303,24 @@ void loop()
         set_velocity();
         break;
       case 'm': // ustaw silniki na jazde do przodu
-        set_motors_direction(true);
-        move();
+        assign_distance_by_cm();
+        set_motors_direction(FORWARD_DRIVE);
+        drive_robot();
         break;
       case 'b': // ustaw silniki na jazde do tylu
-        set_motors_direction(false);
-        move();
+        assign_distance_by_cm();
+        set_motors_direction(BACKWARD_DRIVE);
+        drive_robot();
         break;
       case 'l': // wartosc odwrocenia silnikow
-        left_motor.forward();
-        right_motor.backward();
-        move();
+        turn(LEFT_TURN);
         break;
       case 'r': // wartosc odwrocenia silnikow
-        left_motor.backward();
-        right_motor.forward();
-        move();
-        break;
-      case 'f': // ustaw silniki na jazde prostO
-        set_motors_direction(true);
+       turn(RIGHT_TURN);
         break;
       case 's': // gwaltowne zatrzymanie silnikow
         stop_motors(true);
-        break;
+        break;  
     }
   }
   measure_motors_velocity();
@@ -319,14 +330,59 @@ void loop()
 //                          FUNKCJE STERUJACE
 //================================================================================
 
+void turn(boolean diretion) {
+  if (read_value <= MAX_TURN_PARAM_VALUE)
+  {
+    assign_distance_by_degree();
+    if (diretion)
+    {
+      left_motor.backward();
+      right_motor.forward();
+    } else {
+      left_motor.forward();
+      right_motor.backward();
+    }
+    drive_robot();
+  } else {
+    Serial.print(control);
+    Serial.println(EXECUTION_ABORTED_INVALID_PARAM);
+  }
+}
+
 void set_velocity()
 {
-  pwm_motors = (unsigned char)read_value;
+  Serial.print(control);
+  if (read_value <= MAX_VELOCITY_PARAM_VALUE)
+  {
+    pwm_motors = (unsigned char)read_value;
+    Serial.println(EXECUTION_SUCCESSFUL);
+  } else {
+    Serial.println(EXECUTION_ABORTED_INVALID_PARAM);
+  }
 }
-void move() {
+void debug_drive_robot() {  //TODO funkcja na podstawie której powstał wykres do pracy, chyba do usunięcia
+  for (unsigned char in = 1; in>0; in++) {
+    left_motor.pwm(in);
+    right_motor.pwm(in);
+    for (int abc=0; abc<20; abc++) {
+      delay(1);
+      measure_motors_velocity();
+    }
+    Serial.print((((double)in)*18)/255.0);
+    Serial.print(',');
+    Serial.print(left_motor.velocity*20);
+    Serial.print(',');
+    Serial.println(right_motor.velocity*20); 
+  }
+  left_motor.pwm(0);
+  right_motor.pwm(0);
+}
+void drive_robot() {
   interrupt_has_recently_occured = false;
   if (!bumpers_not_active())
   {
+    Serial.print(control);
+    Serial.println(EXECUTION_ABORTED_BY_BUMPER_INTERRUPTION);
     return;
   }
   highlight(LED_BLUE);
@@ -336,21 +392,17 @@ void move() {
   //unsigned int distance = ((int)read_value) * READ_VALUE_TO_DISTANCE_RATIO;
   int a = pwm_motors;
   int c = prev_pwm_motors;
-  int to_drive = read_value * 10;
   int b = 50;
   long long prev_millis = millis();
   double error_left = 0.0;
   double error_right = 0.0;
   double prev_error_left = 0.0;
   double prev_error_right = 0.0;
-  double proportional = 255 / 19.5;
-  double derrivative = 2.35;
-  double integral = 0.5;
   double sum_error_left = 0.0;
   double sum_error_right = 0.0;
   unsigned int left_pwm = 0;
   unsigned int right_pwm = 0;
-  while ((left_motor.encoder_counter < to_drive && right_motor.encoder_counter < to_drive) && (bumpers_not_active() && !interrupt_has_recently_occured)) {
+  while (!(has_reached()) && (bumpers_not_active() && !interrupt_has_recently_occured)) {
     if (a > c) {
       c+=5;
     }
@@ -361,8 +413,8 @@ void move() {
     error_right = (normalized_pwm - (normalized_r));
     sum_error_left += error_left;
     sum_error_right += error_right;
-    left_pwm = (unsigned int)((abs(error_left) * proportional)+(prev_error_left - error_left)*derrivative+sum_error_left*integral);
-    right_pwm = (unsigned int)((abs(error_right) * proportional)+(prev_error_right - error_right)*derrivative+sum_error_right*integral);
+    left_pwm = (unsigned int)((abs(error_left) * PROPORTIONAL)+(prev_error_left - error_left)*DERIVATIVE+sum_error_left*INTEGRAL);
+    right_pwm = (unsigned int)((abs(error_right) * PROPORTIONAL)+(prev_error_right - error_right)*DERIVATIVE+sum_error_right*INTEGRAL);
     left_motor.pwm(left_pwm);
     right_motor.pwm(right_pwm);
     prev_error_left = error_left;
@@ -379,9 +431,6 @@ void move() {
     } else if (left_pwm < 0) {
       right_pwm = 0;
     }
-
-    //    Serial.print(millis());
-    //    Serial.print('\t');
     if (DEBUG) {
       Serial.print(((double)left_pwm) * (18.0 / 255.0));
       Serial.print('\t');
@@ -400,6 +449,9 @@ void move() {
   }
   prev_pwm_motors = 0;
   stop_motors(false);
+  highlight(interrupt_has_recently_occured ? LED_RED : LED_GREEN);
+  Serial.print(control);
+  Serial.println(interrupt_has_recently_occured ? EXECUTION_ABORTED_BY_BUMPER_INTERRUPTION : EXECUTION_SUCCESSFUL);
 }
 
 void set_motors_direction(boolean is_forward)
@@ -425,17 +477,26 @@ void stop_motors(boolean fast_stop)
   }
   else
   {
-    left_motor.stop();
-    right_motor.stop();
+    left_motor.calm_stop();
+    right_motor.calm_stop();
   }
 }
 
 //================================================================================
 //                          FUNKCJE POMOCNICZE
 //================================================================================
-boolean has_reached ( unsigned int distance )
+void assign_distance_by_degree()
 {
-  return (left_motor.encoder_counter * INTERRUPTS_TO_MM < distance && right_motor.encoder_counter * INTERRUPTS_TO_MM < distance);
+  read_value = read_value*PI*ROBOT_WIDTH/36;
+}
+
+void assign_distance_by_cm()
+{
+  read_value *= 100;
+}
+boolean has_reached ()
+{
+  return (left_motor.encoder_counter * INTERRUPTS_TO_CM > read_value || right_motor.encoder_counter * INTERRUPTS_TO_CM > read_value);
 }
 void measure_motors_velocity() {
   right_motor.measure_velocity();
@@ -474,8 +535,6 @@ void reset_encoder_counters() {
   right_motor.reset_encoder_counter();
 }
 
-int pwm (int error, int prev_error) {
-}
 // ==============================================================================
 //                         PROTOKOL KOMUNIKACJI
 // ==============================================================================
