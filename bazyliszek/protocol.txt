@@ -1,0 +1,24 @@
+ Protokol:
+    move - argument dystans w cm, cel: przejechanie danego dystansu. Moc silnikow ustawiana w funkcji velocity
+    rotate - argument kąt (0-360, ale przod robota to 0 stopni), cel: obrocenie robota o dany kat wokół własnej osi
+    velocity - samo ustawienie PWMa, bez jazdy. Jeżeli robot ma przejechać dystans, to używa się funkcji move
+
+    reset odometry - resetowanie stałych na 0
+    send_odometry - wyslanie na port szeregowy informacji o odometrii
+Packety:
+    mXXX - move forward
+    bXXX - move backward
+    rXXX - rotate right
+    lXXX - rotate left
+    vXXX - velocity
+
+    d000 - reset odometry
+    s000 - send odometry
+
+Dzialanie funkcji move:
+    Szybszy silnik jedzie z zadanym przez funkcje velocity PWMem, a wolniejszy silnik
+    dostosowuje swojego PWMa korzystając z regulatora PID i enkoderów aby jechać prosto.
+    W ten sposób robot będzie sie poruszał po linii prostej.
+    Przejechany dystans będzie zliczany w pętli z PIDem na podstawie sredniej arytmetycznej
+    liczby przerwań enkoderów. Jeżeli zostanie osiągnięty zadany dystans, następuje fast stop
+    silników
